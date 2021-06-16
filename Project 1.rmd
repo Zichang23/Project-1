@@ -2,29 +2,163 @@
 title: "Project 1"
 author: "Zichang Xiang"
 date: "6/11/2021"
-output: html_document
+output: rmarkdown:: html_document：
+    toc: true
 ---
-
+## Reading and summarizing data from NHL API
 ```{r setup, include=FALSE}
+install.packages("rmarkdown")
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Required Packages
+jsonlite, RCurl, rmarkdown, httr, DBI
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r}
+#load the required packages
+library(rmarkdown)
+library(jsonlite)
+library(RCurl)
+library(httr)
+library(DBI)
+#rmarkdown::render("Project 1.rmd")
 ```
 
-## Including Plots
+## functions to contact the NHL records API
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+### function to return franchise
+```{r franchise}
+#retrieve the info and convert to a list
+get_franchise <- GET("https://records.nhl.com/site/api/franchise")
+franchise_cont <- content(get_franchise, "text", encoding = "UTF-8")
+franchise_json<- fromJSON(franchise_cont, flatten = TRUE)
+franchise_list <-as_tibble(franchise_json$data)
+#create function
+franchise <- function(name) {
+if (is.character(name)){
+  return(franchise_list %>% filter(fullName == name | teamAbbrev == name | teamCommonName == name |teamPlaceName == name) %>% collect())
+}else
+  return(franchise_list %>% filter(mostRecentTeamId == name|lastSeasonId == name|firstSeasonId == name|id == name) %>% collect())
+}
+franchise(2)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+### function to return total stats for every franchise
+```{r total}
+#retrieve info and convert to a list
+get_total <- GET("https://records.nhl.com/site/api/franchise-team-totals")
+total_cont <- content(get_total, "text", encoding = "UTF-8")
+total_json<- fromJSON(total_cont, flatten = TRUE)
+total_list <-as_tibble(total_json$data)
+#create function team_totals
+team_totals <- function(name) {
+if (is.character(name)){
+  return(total_list %>% filter(teamName == name | triCode == name) )
+}else
+  return(total_list %>% filter(firstSeasonId == name|id == name|franchiseId == name|lastSeasonId == name|teamId==name) )
+}
+
+team_totals("MTL")
+```
+
+### function to return season records
+```{r season}
+season <- function(name) {
+  if (is.numeric(name)){
+base_url <- paste0("https://records.nhl.com/site/api/franchise-season-records?cayenneExp=franchiseId=", name)
+get_season <- GET(base_url)
+season_cont <- content(get_season, "text", encoding = "UTF-8")
+season_json <- fromJSON(season_cont, flatten = TRUE)
+season_list <- as_tibble(season_json$data)
+return(season_list)}else{
+  get_season <- GET("https://records.nhl.com/site/api/franchise-season-records")
+  season_cont <- content(get_season, "text", encoding = "UTF-8")
+  season_json <- fromJSON(season_cont, flatten = TRUE)
+  season_list <- as_tibble(season_json$data)
+  return(season_list %>% filter(franchiseName == name))
+}}
+season("Montréal Canadiens")
+```
+### function to return goalie records
+```{r goalie}
+goalie <- function(name) {
+  if (is.numeric(name)){
+base_url <- paste0("https://records.nhl.com/site/api/franchise-goalie-records?cayenneExp=franchiseId=", name)
+get_goalie <- GET(base_url)
+goalie_cont <- content(get_goalie, "text", encoding = "UTF-8")
+goalie_json <- fromJSON(goalie_cont, flatten = TRUE)
+goalie_list <- as_tibble(goalie_json$data)
+return(goalie_list %>% filter(id==name|franchiseId==name|mostShutoutsSeasonIds==name|mostWinsSeasonIds==name|playerId==name))}else{
+  get_goalie <- GET("https://records.nhl.com/site/api/franchise-goalie-records")
+  goalie_cont <- content(get_goalie, "text", encoding = "UTF-8")
+  goalie_json <- fromJSON(goalie_cont, flatten = TRUE)
+  goalie_list <- as_tibble(goalie_json$data)
+  return(goalie_list %>% filter(franchiseName == name|lastName==name|firstName==name))
+}}
+goalie(1)
+```
+### function to return skater records
+```{r}
+skater <- function(name) {
+  if (is.numeric(name)){
+base_url <- paste0("https://records.nhl.com/site/api/franchise-skater-records?cayenneExp=franchiseId=", name)
+get_skater <- GET(base_url)
+skater_cont <- content(get_skater, "text", encoding = "UTF-8")
+skater_json <- fromJSON(skater_cont, flatten = TRUE)
+skater_list <- as_tibble(skater_json$data)
+return(skater_list %>% filter(id==name|franchiseId==name|mostAssistsSeasonIds==name|mostGoalsSeasonIds==name|mostPenaltyMinutesSeasonIds==name))}else{
+  get_skater<- GET("https://records.nhl.com/site/api/franchise-skater-records")
+  skater_cont <- content(get_skater, "text", encoding = "UTF-8")
+  skater_json <- fromJSON(skater_cont, flatten = TRUE)
+  skater_list <- as_tibble(skater_json$data)
+  return(skater_list %>% filter(franchiseName == name|lastName==name|firstName==name))
+}}
+skater(1)
+```
+
+### function to return detail records
+```{r detail}
+detail <- function(name) {
+  if (is.numeric(name)){
+base_url <- paste0("https://records.nhl.com/site/api/franchise-detail?cayenneExp=mostRecentTeamId=", name)
+get_detail <- GET(base_url)
+detail_cont <- content(get_detail, "text", encoding = "UTF-8")
+detail_json <- fromJSON(detail_cont, flatten = TRUE)
+detail_list <- as_tibble(detail_json$data)
+return(detail_list %>% filter(id==name|firstSeasonId==name|mostRecentTeamId==name))}else{
+  get_detail <- GET("https://statsapi.web.nhl.com/api/v1/teams/5/stats")
+  detail_cont <- content(get_detail, "text", encoding = "UTF-8")
+  detail_json <- fromJSON(detail_cont, flatten = TRUE)
+  detail_list <- as_tibble(detail_json$data)
+  return(detail_list %>% filter(teamAbbrev == name|teamFullName==name))
+}}
+detail("Vancouver Canucks")
+```
+
+
+## function to contact the NHL stats API
+```{r stats}
+stats <- function(name) {
+  if (is.numeric(name)){
+base_url <- paste0("https://records.nhl.com/site/api/franchise-detail?cayenneExp=mostRecentTeamId=", name)
+get_stats <- GET(base_url)
+stats_cont <- content(get_stats, "text", encoding = "UTF-8")
+stats_json <- fromJSON(stats_cont, flatten = TRUE)
+stats_list <- as_tibble(stats_json$data)
+return(stats_list %>% filter(id==name|firstSeasonId==name|mostRecentTeamId==name))}else{
+  get_stats <- GET("https://statsapi.web.nhl.com/api/v1/teams?expand=team.stats")
+  stats_cont <- content(get_stats, "text", encoding = "UTF-8")
+  stats_json <- fromJSON(stats_cont, flatten = TRUE)
+  stats_list <- as_tibble(stats_json$data)
+  return(stats_list %>% filter(teamAbbrev == name|teamFullName==name))
+}}
+stats("Vancouver Canucks")
+```
+
+```{r}
+  get_stats <- GET("https://statsapi.web.nhl.com/api/v1/teams/5/stats")
+  stats_cont <- content(get_stats, "text", encoding = "UTF-8")
+  stats_json <- fromJSON(stats_cont, flatten = TRUE)
+  stats_list <- as_tibble(stats_json$data)
+  stats_list
+```
