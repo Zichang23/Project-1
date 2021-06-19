@@ -1,5 +1,5 @@
 ---
-title: "Project 1 draft"
+title: "Project 1"
 author: "Zichang Xiang"
 date: "6/16/2021"
 output:  
@@ -9,6 +9,13 @@ output:
 ### Reading and summarizing data from NHL API
 ```{r setup, include=FALSE}
 #install.packages("rmarkdown")
+#load the required packages
+library(rmarkdown)
+library(dplyr)
+library(jsonlite)
+library(RCurl)
+library(httr)
+library(ggplot2)
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -23,7 +30,6 @@ library(jsonlite)
 library(RCurl)
 library(httr)
 library(ggplot2)
-#rmarkdown::render("Project 1.rmd")
 ```
 
 ### functions to contact the NHL records API
@@ -253,7 +259,7 @@ goalie_all
 ```{r}
 #table to summarize the relationship between player type and the number of active player
 table(goalie_skater_all$Type, goalie_skater_all$activePlayer)
-#table to summarize the relationship between divisions and timeZones)
+#table to summarize the relationship between divisions and timeZones
 table(stats(NULL)$division.name, stats(NULL)$venue.timeZone.tz)
 ```
 
@@ -311,5 +317,4 @@ g+ geom_point(aes(color=Conference), position="jitter")+
    geom_smooth(aes(group=Conference),method=lm, formula= y~x, col="green")+
    ggtitle("Wins vs Losses")
 ```
-
 
