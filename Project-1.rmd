@@ -2,20 +2,13 @@
 title: "Project 1"
 author: "Zichang Xiang"
 date: "6/16/2021"
+purpose: create vignette for reading and summarizing data from NHL API
 output:  
   github_document:  
     toc: true
 ---
 ### Reading and summarizing data from NHL API
 ```{r setup, include=FALSE}
-#install.packages("rmarkdown")
-#load the required packages
-library(rmarkdown)
-library(dplyr)
-library(jsonlite)
-library(RCurl)
-library(httr)
-library(ggplot2)
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -32,29 +25,31 @@ library(httr)
 library(ggplot2)
 ```
 
-### functions to contact the NHL records API
-
-#### function to return franchise
+### Functions to contact the NHL records API
+#### Function to return franchise
 ```{r franchise}
 #retrieve the info and convert to a list
 get_franchise <- GET("https://records.nhl.com/site/api/franchise")
 franchise_cont <- content(get_franchise, "text", encoding = "UTF-8")
 franchise_json<- fromJSON(franchise_cont, flatten = TRUE)
 franchise_list <-as_tibble(franchise_json$data)
-#create function
+#create function franchise
 franchise <- function(name) {
   if (is.null(name)){
-    return(franchise_list)
+  return(franchise_list)
   }else if (is.character(name)){
-  return(franchise_list %>% filter(fullName == name | teamAbbrev == name | teamCommonName == name |teamPlaceName ==    name) %>% collect())
+  return(franchise_list %>% 
+           filter(fullName == name | teamAbbrev == name | teamCommonName == name |
+                    teamPlaceName == name))
   }else
-  return(franchise_list %>% filter(mostRecentTeamId == name) %>% collect())
+  return(franchise_list %>% filter(mostRecentTeamId == name))
 }
+#try to use function franchise
 franchise(NULL)
 ```
 
 
-#### function to return total stats for every franchise
+#### Function to return total stats for every franchise
 ```{r total}
 #retrieve info and convert to a list
 get_total <- GET("https://records.nhl.com/site/api/franchise-team-totals")
@@ -64,144 +59,169 @@ total_list <-as_tibble(total_json$data)
 #create function team_totals
 team_totals <- function(name) {
   if (is.null(name)){
-    return(total_list)
+  return(total_list)
   }else if (is.character(name)){
-  return(total_list %>% filter(teamName == name | triCode == name) )
+  return(total_list %>% filter(teamName == name | triCode == name))
   }else
   return(total_list %>% filter(franchiseId == name) )
 }
 
+#try to use function team_totals
 team_totals("MTL")
 team_totals(NULL)
 ```
 
-#### function to return season records
+#### Function to return season records
 ```{r season}
 #create function season
 season <- function(name) {
   if (is.null(name)){
-  base_url <- paste0("https://records.nhl.com/site/api/franchise-season-records")
-  get_season <- GET(base_url)
-  season_cont <- content(get_season, "text", encoding = "UTF-8")
-  season_json <- fromJSON(season_cont, flatten = TRUE)
-  season_list <- as_tibble(season_json$data)
+    base_url <- paste0("https://records.nhl.com/site/api/franchise-season-records")
+    get_season <- GET(base_url)
+    season_cont <- content(get_season, "text", encoding = "UTF-8")
+    season_json <- fromJSON(season_cont, flatten = TRUE)
+    season_list <- as_tibble(season_json$data)
   return(season_list)
   }else if (is.numeric(name)){
-   base_url <- paste0("https://records.nhl.com/site/api/franchise-season-records?cayenneExp=franchiseId=", name)
-   get_season <- GET(base_url)
-   season_cont <- content(get_season, "text", encoding = "UTF-8")
-   season_json <- fromJSON(season_cont, flatten = TRUE)
-   season_list <- as_tibble(season_json$data)
-  return(season_list)}else{
-  get_season <- GET("https://records.nhl.com/site/api/franchise-season-records")
-  season_cont <- content(get_season, "text", encoding = "UTF-8")
-  season_json <- fromJSON(season_cont, flatten = TRUE)
-  season_list <- as_tibble(season_json$data)
+    base_url <- paste0("https://records.nhl.com/site/api/franchise-season-records?cayenneExp=franchiseId=", name)
+    get_season <- GET(base_url)
+    season_cont <- content(get_season, "text", encoding = "UTF-8")
+    season_json <- fromJSON(season_cont, flatten = TRUE)
+    season_list <- as_tibble(season_json$data)
+  return(season_list)
+  }else{
+    get_season <- GET("https://records.nhl.com/site/api/franchise-season-records")
+    season_cont <- content(get_season, "text", encoding = "UTF-8")
+    season_json <- fromJSON(season_cont, flatten = TRUE)
+    season_list <- as_tibble(season_json$data)
   return(season_list %>% filter(franchiseName == name))
-}}
+  }
+}
+
+#try to use function season
 season("Montréal Canadiens")
 season(NULL)
 ```
-#### function to return goalie records
+
+#### Function to return goalie records
 ```{r goalie}
 #create function goalie
 goalie <- function(name) {
   if (is.null(name)){
-  base_url <- paste0("https://records.nhl.com/site/api/franchise-goalie-records")
-  get_goalie <- GET(base_url)
-  goalie_cont <- content(get_goalie, "text", encoding = "UTF-8")
-  goalie_json <- fromJSON(goalie_cont, flatten = TRUE)
-  goalie_list <- as_tibble(goalie_json$data)
+    base_url <- paste0("https://records.nhl.com/site/api/franchise-goalie-records")
+    get_goalie <- GET(base_url)
+    goalie_cont <- content(get_goalie, "text", encoding = "UTF-8")
+    goalie_json <- fromJSON(goalie_cont, flatten = TRUE)
+    goalie_list <- as_tibble(goalie_json$data)
   return(goalie_list)
   }else if (is.numeric(name)){
-  base_url <- paste0("https://records.nhl.com/site/api/franchise-goalie-records?cayenneExp=franchiseId=", name)
-  get_goalie <- GET(base_url)
-  goalie_cont <- content(get_goalie, "text", encoding = "UTF-8")
-  goalie_json <- fromJSON(goalie_cont, flatten = TRUE)
-  goalie_list <- as_tibble(goalie_json$data)
-  return(goalie_list %>% filter(franchiseId==name))}else{
-  get_goalie <- GET("https://records.nhl.com/site/api/franchise-goalie-records")
-  goalie_cont <- content(get_goalie, "text", encoding = "UTF-8")
-  goalie_json <- fromJSON(goalie_cont, flatten = TRUE)
-  goalie_list <- as_tibble(goalie_json$data)
-  return(goalie_list %>% filter(franchiseName == name|lastName==name|firstName==name))
-}}
+    base_url <- paste0("https://records.nhl.com/site/api/franchise-goalie-records?cayenneExp=franchiseId=", name)
+    get_goalie <- GET(base_url)
+    goalie_cont <- content(get_goalie, "text", encoding = "UTF-8")
+    goalie_json <- fromJSON(goalie_cont, flatten = TRUE)
+    goalie_list <- as_tibble(goalie_json$data)
+  return(goalie_list %>% filter(franchiseId == name))
+  }else{
+    get_goalie <- GET("https://records.nhl.com/site/api/franchise-goalie-records")
+    goalie_cont <- content(get_goalie, "text", encoding = "UTF-8")
+    goalie_json <- fromJSON(goalie_cont, flatten = TRUE)
+    goalie_list <- as_tibble(goalie_json$data)
+  return(goalie_list %>% filter(franchiseName == name | lastName == name | 
+                                    firstName == name))
+  }
+}
+
+#try to use function goalie
 goalie(1)
 goalie(NULL)
 ```
-#### function to return skater records
+
+#### Function to return skater records
 ```{r}
 #create function skater
 skater <- function(name) {
   if (is.null(name)){
-  base_url <- paste0("https://records.nhl.com/site/api/franchise-skater-records")
-  get_skater <- GET(base_url)
-  skater_cont <- content(get_skater, "text", encoding = "UTF-8")
-  skater_json <- fromJSON(skater_cont, flatten = TRUE)
-  skater_list <- as_tibble(skater_json$data)
+    base_url <- paste0("https://records.nhl.com/site/api/franchise-skater-records")
+    get_skater <- GET(base_url)
+    skater_cont <- content(get_skater, "text", encoding = "UTF-8")
+    skater_json <- fromJSON(skater_cont, flatten = TRUE)
+    skater_list <- as_tibble(skater_json$data)
   return(skater_list)
   }else if (is.numeric(name)){
-  base_url <- paste0("https://records.nhl.com/site/api/franchise-skater-records?cayenneExp=franchiseId=", name)
-  get_skater <- GET(base_url)
-  skater_cont <- content(get_skater, "text", encoding = "UTF-8")
-  skater_json <- fromJSON(skater_cont, flatten = TRUE)
-  skater_list <- as_tibble(skater_json$data)
-  return(skater_list %>% filter(franchiseId==name))}else{
-  get_skater<- GET("https://records.nhl.com/site/api/franchise-skater-records")
-  skater_cont <- content(get_skater, "text", encoding = "UTF-8")
-  skater_json <- fromJSON(skater_cont, flatten = TRUE)
-  skater_list <- as_tibble(skater_json$data)
-  return(skater_list %>% filter(franchiseName == name|lastName==name|firstName==name))
-}}
+    base_url <- paste0("https://records.nhl.com/site/api/franchise-skater-records?cayenneExp=franchiseId=", name)
+    get_skater <- GET(base_url)
+    skater_cont <- content(get_skater, "text", encoding = "UTF-8")
+    skater_json <- fromJSON(skater_cont, flatten = TRUE)
+    skater_list <- as_tibble(skater_json$data)
+  return(skater_list %>% filter(franchiseId == name))
+  }else{
+    get_skater<- GET("https://records.nhl.com/site/api/franchise-skater-records")
+    skater_cont <- content(get_skater, "text", encoding = "UTF-8")
+    skater_json <- fromJSON(skater_cont, flatten = TRUE)
+    skater_list <- as_tibble(skater_json$data)
+  return(skater_list %>% filter(franchiseName == name | lastName==name | 
+                                    firstName == name))
+  }
+}
+
+#try to use function skater
 skater(1)
 skater(NULL)
 ```
 
-#### function to return detail records
+#### Function to return detail records
 ```{r detail}
 #create function detail
 detail <- function(name) {
   if (is.null(name)){
-  base_url <- paste0("https://records.nhl.com/site/api/franchise-detail?")
-  get_detail <- GET(base_url)
-  detail_cont <- content(get_detail, "text", encoding = "UTF-8")
-  detail_json <- fromJSON(detail_cont, flatten = TRUE)
-  detail_list <- as_tibble(detail_json$data)
+    base_url <- paste0("https://records.nhl.com/site/api/franchise-detail?")
+    get_detail <- GET(base_url)
+    detail_cont <- content(get_detail, "text", encoding = "UTF-8")
+    detail_json <- fromJSON(detail_cont, flatten = TRUE)
+    detail_list <- as_tibble(detail_json$data)
   return(detail_list)  
   }else if (is.numeric(name)){
-  base_url <- paste0("https://records.nhl.com/site/api/franchise-detail?cayenneExp=mostRecentTeamId=", name)
-  get_detail <- GET(base_url)
-  detail_cont <- content(get_detail, "text", encoding = "UTF-8")
-  detail_json <- fromJSON(detail_cont, flatten = TRUE)
-  detail_list <- as_tibble(detail_json$data)
-  return(detail_list %>% filter(mostRecentTeamId==name))}else{
-  get_detail <- GET("https://records.nhl.com/site/api/franchise-detail")
-  detail_cont <- content(get_detail, "text", encoding = "UTF-8")
-  detail_json <- fromJSON(detail_cont, flatten = TRUE)
-  detail_list <- as_tibble(detail_json$data)
-  return(detail_list %>% filter(teamAbbrev == name|teamFullName==name))
-}}
+    base_url <- paste0("https://records.nhl.com/site/api/franchise-detail?cayenneExp=mostRecentTeamId=", name)
+    get_detail <- GET(base_url)
+    detail_cont <- content(get_detail, "text", encoding = "UTF-8")
+    detail_json <- fromJSON(detail_cont, flatten = TRUE)
+    detail_list <- as_tibble(detail_json$data)
+  return(detail_list %>% filter(mostRecentTeamId == name))
+  }else{
+    get_detail <- GET("https://records.nhl.com/site/api/franchise-detail")
+    detail_cont <- content(get_detail, "text", encoding = "UTF-8")
+    detail_json <- fromJSON(detail_cont, flatten = TRUE)
+    detail_list <- as_tibble(detail_json$data)
+  return(detail_list %>% filter(teamAbbrev == name | teamFullName == name))
+  }
+}
+
+#try to use function detail
 detail("Vancouver Canucks")
 detail(NULL)
 ```
 
-### function to contact the NHL stats API
+### Function to contact the NHL stats API
 ```{r stats}
 #create function stats
 stats <- function(name) {
   if (is.null(name)){
-    full_url <- paste0("https://statsapi.web.nhl.com/api/v1/teams","?expand=team.stats")
-    }else{full_url <- paste0("https://statsapi.web.nhl.com/api/v1/teams/", name, "/?expand=team.stats")}
+    full_url <- paste0("https://statsapi.web.nhl.com/api/v1/teams",
+                       "?expand=team.stats")
+  }else{full_url <- paste0("https://statsapi.web.nhl.com/api/v1/teams/", name,
+                           "/?expand=team.stats")}
     get_stats <- GET(full_url)
     stats_cont <- content(get_stats, "text", encoding = "UTF-8")
     stats_json <- fromJSON(stats_cont, flatten = TRUE)
     stats_list <- as_tibble(stats_json$teams)
-    return(stats_list)
+  return(stats_list)
 }
+
+#try to use function stats
 stats(NULL)
 ```
 
-### Wrapper function to call other function
+### Wrapper function to call other functions
 ```{r}
 #create wrapper function to call other functions
 wrapper <- function(fun, name){
@@ -222,7 +242,9 @@ wrapper <- function(fun, name){
   }else{
     stop("Type the correct function!")
   }
-  }
+}
+
+#try to use function wrapper
 wrapper("stats", NULL)
 wrapper("franchise", NULL)
 ```
@@ -230,91 +252,117 @@ wrapper("franchise", NULL)
 ### Basic exploratory data analysis
 #### Combine data from two endpoints
 ```{r}
-#all goalies
-goalie_all <- goalie(NULL)[,c(1:8)]
+#create new data frame goalie_all
+goalie_all <- goalie(NULL)[ , c(1:8)]
 goalie_all <- goalie_all %>% mutate(Type = "goalie")
+#view the data frame
 goalie_all
-#all skaters
-skater_all <-skater(NULL)[,c(1:2,4:8,10)]
+
+#create new data frame skater_all
+skater_all <-skater(NULL)[, c(1:2, 4:8, 10)]
 skater_all <- skater_all %>% mutate(Type = "skater")
+#view the data frame
 skater_all
-#all goalies and skaters 
+
+#create new data frame goalie_skater_all
 goalie_skater_all <- rbind(goalie_all, skater_all)
-goalie_skater_all <- goalie_skater_all[order(goalie_skater_all$id),]
+goalie_skater_all <- goalie_skater_all[order(goalie_skater_all$id), ]
+#view the data frame
 goalie_skater_all
 ```
 
-#### create at least two new variables
+#### Create at least two new variables  
+Here we create three new variables loss_rate, win_rate, and tie_rate
 ```{r}
-#all goalies
-goalie_all <- goalie(NULL)[,c(1:9, 28:29)]
+#create new data frame goalie_all
+goalie_all <- goalie(NULL)[ , c(1:9, 28:29)]
+#view the data frame
 goalie_all
-#create three new variables
-goalie_all <- goalie_all %>% mutate(loss_rate = goalie_all$losses/goalie_all$gamesPlayed, win_rate = goalie_all$wins/goalie_all$gamesPlayed, tie_rate =goalie_all$ties/goalie_all$gamesPlayed)
+
+#create three new variables loss_rate, win_rate, and tie_rate
+goalie_all <- goalie_all %>% mutate(loss_rate = goalie_all$losses/goalie_all$gamesPlayed, 
+                                    win_rate = goalie_all$wins/goalie_all$gamesPlayed, 
+                                    tie_rate = goalie_all$ties/goalie_all$gamesPlayed)
+#view the data frame
 goalie_all
 ```
 
+#### Create contingency tables  
+Table 1 below shows the relationship between the type of player and the number of active players. As we can see from the table, there are more non-active players than active players. This is true for both goalies and skaters.
 
-#### create contingency tables
+In the second table, we can find the number of teams for each combination of division and time zone. We can see from the table that teams in division Honda West and in division Scotia North are from four different time zones, while teams in division MassMutual East fall into only one time zone EDT.
 ```{r}
-#table to summarize the relationship between player type and the number of active player
+#create table to summarize the relationship between player type and the number of active players
 table(goalie_skater_all$Type, goalie_skater_all$activePlayer)
-#table to summarize the relationship between divisions and timeZones
+
+#create table to summarize the relationship between divisions and timeZones
 table(stats(NULL)$division.name, stats(NULL)$venue.timeZone.tz)
 ```
 
+#### Create numerical summaries  
 
-#### create numerical summaries
 ```{r}
-#quartiles and mean for wins in regular season
+#quantiles and mean for wins in regular season
 totals_regular <- team_totals(NULL) %>% filter(gameTypeId ==2) 
 summary(totals_regular$wins)
-#quartiles and mean for games played
-goalie_skater_all %>% group_by(Type) %>% summarize(min = min(gamesPlayed), avg = round(mean(gamesPlayed),0), med = median(gamesPlayed), max = max(gamesPlayed))
+
+#quantiles and mean for games played
+goalie_skater_all %>% group_by(Type) %>% summarize(min = min(gamesPlayed), 
+                                                   avg = round(mean(gamesPlayed),0), 
+                                                   med = median(gamesPlayed), 
+                                                   max = max(gamesPlayed))
 ```
 
-#### creates plots
+#### Creates plots  
+The bar plot below compares the number of players for each player type. As we can see, non-active skaters are the most common, while active goalies are the least common.
 ```{r}
 #create bar plot to compare number of players for each player type
-g <- ggplot(goalie_skater_all, aes(x=Type))
-g + geom_bar(aes(fill=as.factor(activePlayer)), position = "dodge")+ 
-  ggtitle("Numer of Players for Each Player Type")+ 
-  labs(x="Player Type")+
+g <- ggplot(goalie_skater_all, aes(x = Type))
+g + geom_bar(aes(fill = as.factor(activePlayer)), position = "dodge") + 
+  ggtitle("Numer of Players for Each Player Type") + 
+  labs(x = "Player Type") + 
   scale_fill_discrete(name = "Active player")
 ```
 
 
+Below is a histogram of the distribution of numerical variable wins. The plot shows that the probability of winning decreases as the number of wins increases. In other words, it is harder to win more games.
 ```{r}
-#create histogram
-g <- ggplot(goalie_all, aes(x=wins, ..density..))
-g + geom_histogram(bins  = 150)+
-  labs(x="Wins", y="Density")+
-  ggtitle("Histogram for Wins")+
-  geom_density(col="red", lwd = 3, adjust =0.4)
+#create histogram to present the distribution of numerical variable wins.
+g <- ggplot(goalie_all, aes(x = wins, ..density..))
+g + geom_histogram(bins = 150) +
+  labs(x = "Wins", y = "Density") +
+  ggtitle("Histogram for Wins") +
+  geom_density(col = "red", lwd = 3, adjust = 0.4)
 ```
 
-
+Below is a boxplot showing the number of wins for each conference. The Eastern conference has more wins.
 ```{r}
-#create two new datasets
-conference <- stats(NULL)[,c("id", "conference.name")]
-totals <- team_totals(NULL) %>% filter(gameTypeId == 2, teamId %in% c(1:26,28:30,52:55)) %>% select(c(14, 26,27,30))
+#create a new dataset conf_totals
+conference <- stats(NULL)[ , c("id", "conference.name")]
+totals <- team_totals(NULL) %>% 
+  filter(gameTypeId == 2, teamId %in% c(1:26, 28:30, 52:55)) %>% 
+  select(c(14, 26, 27, 30))
 totals <- totals %>% rename(id = teamId)
 conference <- conference %>% rename(Conference = conference.name)
-conf_totals<- merge(totals,conference, by = "id")
+conf_totals<- merge(totals, conference, by = "id")
+#view the dataset conf_totals
+conf_totals
+
 #create boxplot for number of wins for each conference
 g <- ggplot(conf_totals, aes(x = Conference, y = wins)) 
 g + geom_boxplot() + 
   geom_jitter(aes(color = Conference)) + 
-  ggtitle("Boxplot for Wins")+
-  labs(x="Conference", y= "Wins")
-conf_totals
+  ggtitle("Boxplot for Wins") +
+  labs(x = "Conference", y = "Wins")
 ```
 
+
+The scatterplot below illustrates how wins and losses are related. We can see that more wins are accompanied by more losses. This is true for both conferences.
 ```{r}
-#create scatter plot
+#create scatter plot to show the relationship between wins and losses
 g <- ggplot(conf_totals, aes(x = wins, y = losses, group = Conference)) 
-g+ geom_point(aes(color=Conference), position="jitter")+
-   geom_smooth(aes(group=Conference),method=lm, formula= y~x, col="green")+
+g+ geom_point(aes(color = Conference), position = "jitter") + 
+   geom_smooth(aes(group = Conference), method = lm, formula = y ~ x, col = "green") + 
    ggtitle("Wins vs Losses")
 ```
 
