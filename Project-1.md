@@ -61,19 +61,44 @@ franchise_list
     ## #   teamPlaceName <chr>
 
 ``` r
+#create data frame lookup_f
+lookup_f <- franchise_list[ , c(3,5)]
+lookup_f
+```
+
+    ## # A tibble: 39 x 2
+    ##    fullName             mostRecentTeamId
+    ##    <chr>                           <int>
+    ##  1 Montréal Canadiens                  8
+    ##  2 Montreal Wanderers                 41
+    ##  3 St. Louis Eagles                   45
+    ##  4 Hamilton Tigers                    37
+    ##  5 Toronto Maple Leafs                10
+    ##  6 Boston Bruins                       6
+    ##  7 Montreal Maroons                   43
+    ##  8 Brooklyn Americans                 51
+    ##  9 Philadelphia Quakers               39
+    ## 10 New York Rangers                    3
+    ## # … with 29 more rows
+
+``` r
 #create function franchise
 franchise <- function(name) {
   if (is.null(name)){
     return(franchise_list)
-  }else if (is.character(name)){
-    return(franchise_list %>% 
-           filter (fullName == name | teamAbbrev == name | teamCommonName == name |
-                    teamPlaceName == name))
-  }else if (is.numeric(name)){
-    return(franchise_list %>% filter(mostRecentTeamId == name))
+  }else if (name %in% lookup_f$mostRecentTeamId){
+    full_url <- paste0("https://records.nhl.com/site/api/franchise?cayenneExp=mostRecentTeamId=", name)
+  }else if (toupper(name) %in% toupper(lookup_f$fullName)){
+    id <- lookup_f %>% filter(toupper(fullName) == toupper(name)) %>% select(2)
+    full_url <- paste0("https://records.nhl.com/site/api/franchise?cayenneExp=mostRecentTeamId=", id)
   }else{
     stop("Wrong input!")
   }
+    get_franchise  <- GET(full_url)
+    franchise_cont <- content(get_franchise, "text", encoding = "UTF-8")
+    franchise_json <- fromJSON(franchise_cont, flatten = TRUE)
+    franchise_list <- as_tibble(franchise_json$data)
+    return(franchise_list)
 }
 
 #try to use function franchise
@@ -82,18 +107,18 @@ franchise(8)
 
     ## # A tibble: 1 x 8
     ##      id firstSeasonId fullName          lastSeasonId mostRecentTeamId teamAbbrev
-    ##   <int>         <int> <chr>                    <int>            <int> <chr>     
-    ## 1     1      19171918 Montréal Canadie…           NA                8 MTL       
+    ##   <int>         <int> <chr>             <lgl>                   <int> <chr>     
+    ## 1     1      19171918 Montréal Canadie… NA                          8 MTL       
     ## # … with 2 more variables: teamCommonName <chr>, teamPlaceName <chr>
 
 ``` r
-franchise("Montréal Canadiens")
+franchise("MOntréal Canadiens")
 ```
 
     ## # A tibble: 1 x 8
     ##      id firstSeasonId fullName          lastSeasonId mostRecentTeamId teamAbbrev
-    ##   <int>         <int> <chr>                    <int>            <int> <chr>     
-    ## 1     1      19171918 Montréal Canadie…           NA                8 MTL       
+    ##   <int>         <int> <chr>             <lgl>                   <int> <chr>     
+    ## 1     1      19171918 Montréal Canadie… NA                          8 MTL       
     ## # … with 2 more variables: teamCommonName <chr>, teamPlaceName <chr>
 
 #### Function to return total stats for every franchise
@@ -129,31 +154,75 @@ total_list
     ## #   teamName <chr>, ties <int>, triCode <chr>, wins <int>
 
 ``` r
+#create data frame lookup_t
+lookup_t <- total_list[ , c(4,27)]
+lookup_t
+```
+
+    ## # A tibble: 105 x 2
+    ##    franchiseId teamName           
+    ##          <int> <chr>              
+    ##  1          23 New Jersey Devils  
+    ##  2          23 New Jersey Devils  
+    ##  3          22 New York Islanders 
+    ##  4          22 New York Islanders 
+    ##  5          10 New York Rangers   
+    ##  6          10 New York Rangers   
+    ##  7          16 Philadelphia Flyers
+    ##  8          16 Philadelphia Flyers
+    ##  9          17 Pittsburgh Penguins
+    ## 10          17 Pittsburgh Penguins
+    ## # … with 95 more rows
+
+``` r
 #create function total
 total <- function(name) {
   if (is.null(name)){
     return(total_list)
-  }else if (is.character(name)){
-    return(total_list %>% filter(teamName == name | triCode == name))
-  }else if (is.numeric(name)){
-    return(total_list %>% filter(franchiseId == name) )
+  }else if (name %in% lookup_t$franchiseId){
+    full_url <- paste0("https://records.nhl.com/site/api/franchise-team-totals?cayenneExp=franchiseId=", name)
+  }else if (toupper(name) %in% toupper(lookup_t$teamName)){
+    id <- lookup_t %>% filter(toupper(teamName) == toupper(name)) %>% select(1) %>% unique()
+    full_url <- paste0("https://records.nhl.com/site/api/franchise-team-totals?cayenneExp=franchiseId=", id)
   }else{
     stop("Wrong input!")
   }
+    get_total  <- GET(full_url)
+    total_cont <- content(get_total, "text", encoding = "UTF-8")
+    total_json <- fromJSON(total_cont, flatten = TRUE)
+    total_list <- as_tibble(total_json$data)
+    return(total_list)
 }
 
 #try to use function total
-total("MTL")
+total(1)
 ```
 
     ## # A tibble: 2 x 30
     ##      id activeFranchise firstSeasonId franchiseId gameTypeId gamesPlayed
     ##   <int>           <int>         <int>       <int>      <int>       <int>
-    ## 1    15               1      19171918           1          3         773
-    ## 2    16               1      19171918           1          2        6787
+    ## 1    16               1      19171918           1          2        6787
+    ## 2    15               1      19171918           1          3         773
     ## # … with 24 more variables: goalsAgainst <int>, goalsFor <int>,
     ## #   homeLosses <int>, homeOvertimeLosses <int>, homeTies <int>, homeWins <int>,
-    ## #   lastSeasonId <int>, losses <int>, overtimeLosses <int>,
+    ## #   lastSeasonId <lgl>, losses <int>, overtimeLosses <int>,
+    ## #   penaltyMinutes <int>, pointPctg <dbl>, points <int>, roadLosses <int>,
+    ## #   roadOvertimeLosses <int>, roadTies <int>, roadWins <int>,
+    ## #   shootoutLosses <int>, shootoutWins <int>, shutouts <int>, teamId <int>,
+    ## #   teamName <chr>, ties <int>, triCode <chr>, wins <int>
+
+``` r
+total("NEw York Rangers")
+```
+
+    ## # A tibble: 2 x 30
+    ##      id activeFranchise firstSeasonId franchiseId gameTypeId gamesPlayed
+    ##   <int>           <int>         <int>       <int>      <int>       <int>
+    ## 1     5               1      19261927          10          2        6560
+    ## 2     6               1      19261927          10          3         518
+    ## # … with 24 more variables: goalsAgainst <int>, goalsFor <int>,
+    ## #   homeLosses <int>, homeOvertimeLosses <int>, homeTies <int>, homeWins <int>,
+    ## #   lastSeasonId <lgl>, losses <int>, overtimeLosses <int>,
     ## #   penaltyMinutes <int>, pointPctg <dbl>, points <int>, roadLosses <int>,
     ## #   roadOvertimeLosses <int>, roadTies <int>, roadWins <int>,
     ## #   shootoutLosses <int>, shootoutWins <int>, shutouts <int>, teamId <int>,
@@ -162,14 +231,14 @@ total("MTL")
 #### Function to return season records
 
 ``` r
-#create data frame lookup including name and id
+#create data frame lookup_s including name and id
 base_url    <- paste0("https://records.nhl.com/site/api/franchise-season-records")
 get_season  <- GET(base_url)
 season_cont <- content(get_season, "text", encoding = "UTF-8")
 season_json <- fromJSON(season_cont, flatten = TRUE)
 season_list <- as_tibble(season_json$data)
-lookup <- season_list[,c(14,15)]
-lookup
+lookup_s <- season_list[,c(14,15)]
+lookup_s
 ```
 
     ## # A tibble: 39 x 2
@@ -192,10 +261,10 @@ lookup
 season <- function(name) {
   if (is.null(name)){
     return(season_list)
-  }else if (name %in% lookup$franchiseId){
+  }else if (name %in% lookup_s$franchiseId){
     full_url <- paste0("https://records.nhl.com/site/api/franchise-season-records?cayenneExp=franchiseId=", name)
-  }else if (name %in% lookup$franchiseName){
-    id <- lookup %>% filter(franchiseName == name) %>% select(1)
+  }else if (toupper(name) %in% toupper(lookup_s$franchiseName)){
+    id <- lookup_s %>% filter(toupper(franchiseName) == toupper(name)) %>% select(1)
     full_url <- paste0("https://records.nhl.com/site/api/franchise-season-records?cayenneExp=franchiseId=", id)
   }else{
     stop("Wrong input!")
@@ -236,7 +305,7 @@ season(1)
     ## #   winlessStreak <int>, winlessStreakDates <chr>
 
 ``` r
-season("Montréal Canadiens")
+season("MOntréal Canadiens")
 ```
 
     ## # A tibble: 1 x 57
@@ -266,14 +335,14 @@ season("Montréal Canadiens")
 #### Function to return goalie records
 
 ``` r
-#create data frame lookup
+#create data frame lookup_g
 base_url <- paste0("https://records.nhl.com/site/api/franchise-goalie-records")
 get_goalie  <- GET(base_url)
 goalie_cont <- content(get_goalie, "text", encoding = "UTF-8")
 goalie_json <- fromJSON(goalie_cont, flatten = TRUE)
 goalie_list <- as_tibble(goalie_json$data)
-lookup <- goalie_list[ , c(4, 5)]
-lookup
+lookup_g <- goalie_list[ , c(4, 5)]
+lookup_g
 ```
 
     ## # A tibble: 1,078 x 2
@@ -296,10 +365,10 @@ lookup
 goalie <- function(name) {
   if (is.null(name)){
     return(goalie_list)
-  }else if (name %in% lookup$franchiseId){
+  }else if (name %in% lookup_g$franchiseId){
     full_url <- paste0("https://records.nhl.com/site/api/franchise-goalie-records?cayenneExp=franchiseId=", name)
-  }else if (name %in% lookup$franchiseName){
-    id <- lookup %>% filter(franchiseName == name) %>% select(1) %>% unique()
+  }else if (toupper(name) %in% toupper(lookup_g$franchiseName)){
+    id <- lookup_g %>% filter(toupper(franchiseName) == toupper(name)) %>% select(1) %>% unique()
     full_url <- paste0("https://records.nhl.com/site/api/franchise-goalie-records?cayenneExp=franchiseId=", id)
   }else{
     stop("Wrong input!")
@@ -338,7 +407,7 @@ goalie(15)
     ## #   rookieWins <int>, seasons <int>, shutouts <int>, ties <int>, wins <int>
 
 ``` r
-goalie("Dallas Stars")
+goalie("DAllas Stars")
 ```
 
     ## # A tibble: 37 x 29
@@ -366,14 +435,14 @@ goalie("Dallas Stars")
 #### Function to return skater records
 
 ``` r
-#create data frame lookup
+#create data frame lookup_sk
 base_url <- paste0("https://records.nhl.com/site/api/franchise-skater-records")
 get_skater  <- GET(base_url)
 skater_cont <- content(get_skater, "text", encoding = "UTF-8")
 skater_json <- fromJSON(skater_cont, flatten = TRUE)
 skater_list <- as_tibble(skater_json$data)
-lookup <- skater_list[ , c(5, 6)]
-lookup
+lookup_sk <- skater_list[ , c(5, 6)]
+lookup_sk
 ```
 
     ## # A tibble: 17,209 x 2
@@ -396,10 +465,10 @@ lookup
 skater <- function(name) {
   if (is.null(name)){
     return(skater_list)
-  }else if (name %in% lookup$franchiseId){
+  }else if (name %in% lookup_sk$franchiseId){
     full_url <- paste0("https://records.nhl.com/site/api/franchise-skater-records?cayenneExp=franchiseId=", name)
-  }else if (name %in% lookup$franchiseName){
-    id <- lookup %>% filter(franchiseName == name) %>% select(1) %>% unique()
+  }else if (toupper(name) %in% toupper(lookup_sk$franchiseName)){
+    id <- lookup_sk %>% filter(toupper(franchiseName) == toupper(name)) %>% select(1) %>% unique()
     full_url <- paste0("https://records.nhl.com/site/api/franchise-skater-records?cayenneExp=franchiseId=", id)
   }else{
     stop("Wrong input!")
@@ -440,7 +509,7 @@ skater(1)
     ## #   rookiePoints <int>, seasons <int>
 
 ``` r
-skater("Washington Capitals")
+skater("WAshington Capitals")
 ```
 
     ## # A tibble: 521 x 31
@@ -470,14 +539,14 @@ skater("Washington Capitals")
 #### Function to return detail records
 
 ``` r
-#create data frame lookup
+#create data frame lookup_d
 base_url <- paste0("https://records.nhl.com/site/api/franchise-detail?")
 get_detail  <- GET(base_url)
 detail_cont <- content(get_detail, "text", encoding = "UTF-8")
 detail_json <- fromJSON(detail_cont, flatten = TRUE)
 detail_list <- as_tibble(detail_json$data)
-lookup <- detail_list[, c(10,13)]
-lookup
+lookup_d <- detail_list[, c(10,13)]
+lookup_d
 ```
 
     ## # A tibble: 39 x 2
@@ -501,10 +570,10 @@ detail<- function(name) {
   if (is.null(name)){
     return(detail_list)
   }
-  if (name %in% lookup$mostRecentTeamId){
+  if (name %in% lookup_d$mostRecentTeamId){
     full_url <- paste0("https://records.nhl.com/site/api/franchise-detail?cayenneExp=mostRecentTeamId=", name)
-  }else if (name %in% lookup$teamFullName){
-    id <- lookup %>% filter(teamFullName == name) %>% select(1) %>% unique()
+  }else if (toupper(name) %in% toupper(lookup_d$teamFullName)){
+    id <- lookup_d %>% filter(toupper(teamFullName) == toupper(name)) %>% select(1) %>% unique()
     full_url <- paste0("https://records.nhl.com/site/api/franchise-detail?cayenneExp=mostRecentTeamId=", id)
   }else{
     stop("Wrong input!")
@@ -529,7 +598,7 @@ detail(15)
     ## #   teamAbbrev <chr>, teamFullName <chr>
 
 ``` r
-detail("Dallas Stars")
+detail("DAllas Stars")
 ```
 
     ## # A tibble: 1 x 13
@@ -543,15 +612,15 @@ detail("Dallas Stars")
 ### Function to contact the NHL stats API
 
 ``` r
-#create data frame lookup
+#create data frame lookup_st
 full_url <- paste0("https://statsapi.web.nhl.com/api/v1/teams", "?expand=team.stats")
 get_stats  <- GET(full_url)
 stats_cont <- content(get_stats, "text", encoding = "UTF-8")
 stats_json <- fromJSON(stats_cont, flatten = TRUE)
 stats_list <- as_tibble(stats_json$teams)
-lookup <- stats_list[, c(1:2)]
-lookup <- rename(lookup, teamName = name)
-lookup
+lookup_st <- stats_list[, c(1:2)]
+lookup_st <- rename(lookup_st, teamName = name)
+lookup_st
 ```
 
     ## # A tibble: 32 x 2
@@ -574,11 +643,11 @@ lookup
 stats <- function(name) {
   if (is.null(name)){
     return(stats_list)
-  }else if (name %in% lookup$id){
+  }else if (name %in% lookup_st$id){
     full_url <- paste0("https://statsapi.web.nhl.com/api/v1/teams/", name,
                            "/?expand=team.stats")
-  }else if (name %in% lookup$teamName){
-    id <- lookup %>% filter(teamName == name) %>% select(1)
+  }else if (toupper(name) %in% toupper(lookup_st$teamName)){
+    id <- lookup_st %>% filter(toupper(teamName) == toupper(name)) %>% select(1)
     full_url <- paste0("https://statsapi.web.nhl.com/api/v1/teams/", id,
                            "/?expand=team.stats")
   }else{
@@ -626,7 +695,7 @@ stats(15)
     ## #   franchise.teamName <chr>, franchise.link <chr>
 
 ``` r
-stats("Dallas Stars")
+stats("DAllas Stars")
 ```
 
     ## # A tibble: 2 x 65
@@ -665,7 +734,7 @@ stats("Dallas Stars")
 wrapper <- function(fun, name){
   if (fun == "franchise"){
     return(franchise(name))
-  }else if (fun == "team_totals"){
+  }else if (fun == "total"){
     return(total(name))
   }else if (fun == "season"){
     return(season(name))
@@ -716,13 +785,13 @@ wrapper("stats", 1)
     ## #   franchise.teamName <chr>, franchise.link <chr>
 
 ``` r
-wrapper("franchise", 1)
+wrapper("franchise", 8)
 ```
 
     ## # A tibble: 1 x 8
     ##      id firstSeasonId fullName          lastSeasonId mostRecentTeamId teamAbbrev
-    ##   <int>         <int> <chr>                    <int>            <int> <chr>     
-    ## 1    23      19741975 New Jersey Devils           NA                1 NJD       
+    ##   <int>         <int> <chr>             <lgl>                   <int> <chr>     
+    ## 1     1      19171918 Montréal Canadie… NA                          8 MTL       
     ## # … with 2 more variables: teamCommonName <chr>, teamPlaceName <chr>
 
 ### Basic exploratory data analysis
@@ -888,6 +957,12 @@ kable(table_2)
 | Scotia North     |   1 |   3 |   2 |   0 |   1 |
 
 #### Create numerical summaries
+
+Table 1 shows the numerical summaries of wins in regular season. We
+notice that the median number of wins is 678 in regular season. Table 2
+show the numerical summaries for different type of players. We notice
+that the average number of games played by skater is higher than that by
+goalie.
 
 ``` r
 #quantiles and mean for wins in regular season

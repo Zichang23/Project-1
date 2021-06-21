@@ -60,19 +60,44 @@ franchise_list
     ## # … with 29 more rows
 
 ``` r
+#create data frame lookup_f
+lookup_f <- franchise_list[ , c(3,5)]
+lookup_f
+```
+
+    ## # A tibble: 39 x 2
+    ##    fullName             mostRecentTeamId
+    ##    <chr>                           <int>
+    ##  1 Montréal Canadiens                  8
+    ##  2 Montreal Wanderers                 41
+    ##  3 St. Louis Eagles                   45
+    ##  4 Hamilton Tigers                    37
+    ##  5 Toronto Maple Leafs                10
+    ##  6 Boston Bruins                       6
+    ##  7 Montreal Maroons                   43
+    ##  8 Brooklyn Americans                 51
+    ##  9 Philadelphia Quakers               39
+    ## 10 New York Rangers                    3
+    ## # … with 29 more rows
+
+``` r
 #create function franchise
 franchise <- function(name) {
   if (is.null(name)){
     return(franchise_list)
-  }else if (is.character(name)){
-    return(franchise_list %>% 
-           filter (fullName == name | teamAbbrev == name | teamCommonName == name |
-                    teamPlaceName == name))
-  }else if (is.numeric(name)){
-    return(franchise_list %>% filter(mostRecentTeamId == name))
+  }else if (name %in% lookup_f$mostRecentTeamId){
+    full_url <- paste0("https://records.nhl.com/site/api/franchise?cayenneExp=mostRecentTeamId=", name)
+  }else if (toupper(name) %in% toupper(lookup_f$fullName)){
+    id <- lookup_f %>% filter(toupper(fullName) == toupper(name)) %>% select(2)
+    full_url <- paste0("https://records.nhl.com/site/api/franchise?cayenneExp=mostRecentTeamId=", id)
   }else{
     stop("Wrong input!")
   }
+    get_franchise  <- GET(full_url)
+    franchise_cont <- content(get_franchise, "text", encoding = "UTF-8")
+    franchise_json <- fromJSON(franchise_cont, flatten = TRUE)
+    franchise_list <- as_tibble(franchise_json$data)
+    return(franchise_list)
 }
 
 #try to use function franchise
@@ -81,17 +106,17 @@ franchise(8)
 
     ## # A tibble: 1 x 8
     ##      id firstSeasonId fullName           lastSeasonId mostRecentTeamId teamAbbrev teamCommonName teamPlaceName
-    ##   <int>         <int> <chr>                     <int>            <int> <chr>      <chr>          <chr>        
-    ## 1     1      19171918 Montréal Canadiens           NA                8 MTL        Canadiens      Montréal
+    ##   <int>         <int> <chr>              <lgl>                   <int> <chr>      <chr>          <chr>        
+    ## 1     1      19171918 Montréal Canadiens NA                          8 MTL        Canadiens      Montréal
 
 ``` r
-franchise("Montréal Canadiens")
+franchise("MOntréal Canadiens")
 ```
 
     ## # A tibble: 1 x 8
     ##      id firstSeasonId fullName           lastSeasonId mostRecentTeamId teamAbbrev teamCommonName teamPlaceName
-    ##   <int>         <int> <chr>                     <int>            <int> <chr>      <chr>          <chr>        
-    ## 1     1      19171918 Montréal Canadiens           NA                8 MTL        Canadiens      Montréal
+    ##   <int>         <int> <chr>              <lgl>                   <int> <chr>      <chr>          <chr>        
+    ## 1     1      19171918 Montréal Canadiens NA                          8 MTL        Canadiens      Montréal
 
 #### Function to return total stats for every franchise
 
@@ -105,60 +130,97 @@ total_list
 ```
 
     ## # A tibble: 105 x 30
-    ##       id activeFranchise firstSeasonId franchiseId gameTypeId gamesPlayed goalsAgainst goalsFor homeLosses homeOvertimeLosses homeTies homeWins
-    ##    <int>           <int>         <int>       <int>      <int>       <int>        <int>    <int>      <int>              <int>    <int>    <int>
-    ##  1     1               1      19821983          23          2        2993         8902     8792        525                 85       96      790
-    ##  2     2               1      19821983          23          3         257          634      697         53                  0       NA       74
-    ##  3     3               1      19721973          22          2        3788        11907    12045        678                 84      170      963
-    ##  4     4               1      19721973          22          3         310          899      986         53                  1       NA       95
-    ##  5     5               1      19261927          10          2        6560        20020    20041       1143                 76      448     1614
-    ##  6     6               1      19261927          10          3         518         1447     1404        104                  0        1      137
-    ##  7     7               1      19671968          16          3         449         1332     1335         97                  0       NA      135
-    ##  8     8               1      19671968          16          2        4171        12255    13690        584                 93      193     1216
-    ##  9     9               1      19671968          17          2        4171        14049    13874        683                 60      205     1138
-    ## 10    10               1      19671968          17          3         391         1131     1190         85                  0       NA      113
-    ## # … with 95 more rows, and 18 more variables: lastSeasonId <int>, losses <int>, overtimeLosses <int>, penaltyMinutes <int>, pointPctg <dbl>,
-    ## #   points <int>, roadLosses <int>, roadOvertimeLosses <int>, roadTies <int>, roadWins <int>, shootoutLosses <int>, shootoutWins <int>,
-    ## #   shutouts <int>, teamId <int>, teamName <chr>, ties <int>, triCode <chr>, wins <int>
+    ##       id activeFranchise firstSeasonId franchiseId gameTypeId gamesPlayed goalsAgainst goalsFor homeLosses homeOvertimeLosses homeTies homeWins lastSeasonId losses
+    ##    <int>           <int>         <int>       <int>      <int>       <int>        <int>    <int>      <int>              <int>    <int>    <int>        <int>  <int>
+    ##  1     1               1      19821983          23          2        2993         8902     8792        525                 85       96      790           NA   1211
+    ##  2     2               1      19821983          23          3         257          634      697         53                  0       NA       74           NA    120
+    ##  3     3               1      19721973          22          2        3788        11907    12045        678                 84      170      963           NA   1587
+    ##  4     4               1      19721973          22          3         310          899      986         53                  1       NA       95           NA    139
+    ##  5     5               1      19261927          10          2        6560        20020    20041       1143                 76      448     1614           NA   2716
+    ##  6     6               1      19261927          10          3         518         1447     1404        104                  0        1      137           NA    266
+    ##  7     7               1      19671968          16          3         449         1332     1335         97                  0       NA      135           NA    218
+    ##  8     8               1      19671968          16          2        4171        12255    13690        584                 93      193     1216           NA   1452
+    ##  9     9               1      19671968          17          2        4171        14049    13874        683                 60      205     1138           NA   1734
+    ## 10    10               1      19671968          17          3         391         1131     1190         85                  0       NA      113           NA    182
+    ## # … with 95 more rows, and 16 more variables: overtimeLosses <int>, penaltyMinutes <int>, pointPctg <dbl>, points <int>, roadLosses <int>, roadOvertimeLosses <int>,
+    ## #   roadTies <int>, roadWins <int>, shootoutLosses <int>, shootoutWins <int>, shutouts <int>, teamId <int>, teamName <chr>, ties <int>, triCode <chr>, wins <int>
+
+``` r
+#create data frame lookup_t
+lookup_t <- total_list[ , c(4,27)]
+lookup_t
+```
+
+    ## # A tibble: 105 x 2
+    ##    franchiseId teamName           
+    ##          <int> <chr>              
+    ##  1          23 New Jersey Devils  
+    ##  2          23 New Jersey Devils  
+    ##  3          22 New York Islanders 
+    ##  4          22 New York Islanders 
+    ##  5          10 New York Rangers   
+    ##  6          10 New York Rangers   
+    ##  7          16 Philadelphia Flyers
+    ##  8          16 Philadelphia Flyers
+    ##  9          17 Pittsburgh Penguins
+    ## 10          17 Pittsburgh Penguins
+    ## # … with 95 more rows
 
 ``` r
 #create function total
 total <- function(name) {
   if (is.null(name)){
     return(total_list)
-  }else if (is.character(name)){
-    return(total_list %>% filter(teamName == name | triCode == name))
-  }else if (is.numeric(name)){
-    return(total_list %>% filter(franchiseId == name) )
+  }else if (name %in% lookup_t$franchiseId){
+    full_url <- paste0("https://records.nhl.com/site/api/franchise-team-totals?cayenneExp=franchiseId=", name)
+  }else if (toupper(name) %in% toupper(lookup_t$teamName)){
+    id <- lookup_t %>% filter(toupper(teamName) == toupper(name)) %>% select(1) %>% unique()
+    full_url <- paste0("https://records.nhl.com/site/api/franchise-team-totals?cayenneExp=franchiseId=", id)
   }else{
     stop("Wrong input!")
   }
+    get_total  <- GET(full_url)
+    total_cont <- content(get_total, "text", encoding = "UTF-8")
+    total_json <- fromJSON(total_cont, flatten = TRUE)
+    total_list <- as_tibble(total_json$data)
+    return(total_list)
 }
 
 #try to use function total
-total("MTL")
+total(1)
 ```
 
     ## # A tibble: 2 x 30
-    ##      id activeFranchise firstSeasonId franchiseId gameTypeId gamesPlayed goalsAgainst goalsFor homeLosses homeOvertimeLosses homeTies homeWins
-    ##   <int>           <int>         <int>       <int>      <int>       <int>        <int>    <int>      <int>              <int>    <int>    <int>
-    ## 1    15               1      19171918           1          3         773         1959     2306        133                  0        3      258
-    ## 2    16               1      19171918           1          2        6787        18260    21791        881                 95      381     2038
-    ## # … with 18 more variables: lastSeasonId <int>, losses <int>, overtimeLosses <int>, penaltyMinutes <int>, pointPctg <dbl>, points <int>,
-    ## #   roadLosses <int>, roadOvertimeLosses <int>, roadTies <int>, roadWins <int>, shootoutLosses <int>, shootoutWins <int>, shutouts <int>,
-    ## #   teamId <int>, teamName <chr>, ties <int>, triCode <chr>, wins <int>
+    ##      id activeFranchise firstSeasonId franchiseId gameTypeId gamesPlayed goalsAgainst goalsFor homeLosses homeOvertimeLosses homeTies homeWins lastSeasonId losses
+    ##   <int>           <int>         <int>       <int>      <int>       <int>        <int>    <int>      <int>              <int>    <int>    <int> <lgl>         <int>
+    ## 1    16               1      19171918           1          2        6787        18260    21791        881                 95      381     2038 NA             2302
+    ## 2    15               1      19171918           1          3         773         1959     2306        133                  0        3      258 NA              321
+    ## # … with 16 more variables: overtimeLosses <int>, penaltyMinutes <int>, pointPctg <dbl>, points <int>, roadLosses <int>, roadOvertimeLosses <int>, roadTies <int>,
+    ## #   roadWins <int>, shootoutLosses <int>, shootoutWins <int>, shutouts <int>, teamId <int>, teamName <chr>, ties <int>, triCode <chr>, wins <int>
+
+``` r
+total("NEw York Rangers")
+```
+
+    ## # A tibble: 2 x 30
+    ##      id activeFranchise firstSeasonId franchiseId gameTypeId gamesPlayed goalsAgainst goalsFor homeLosses homeOvertimeLosses homeTies homeWins lastSeasonId losses
+    ##   <int>           <int>         <int>       <int>      <int>       <int>        <int>    <int>      <int>              <int>    <int>    <int> <lgl>         <int>
+    ## 1     5               1      19261927          10          2        6560        20020    20041       1143                 76      448     1614 NA             2716
+    ## 2     6               1      19261927          10          3         518         1447     1404        104                  0        1      137 NA              266
+    ## # … with 16 more variables: overtimeLosses <int>, penaltyMinutes <int>, pointPctg <dbl>, points <int>, roadLosses <int>, roadOvertimeLosses <int>, roadTies <int>,
+    ## #   roadWins <int>, shootoutLosses <int>, shootoutWins <int>, shutouts <int>, teamId <int>, teamName <chr>, ties <int>, triCode <chr>, wins <int>
 
 #### Function to return season records
 
 ``` r
-#create data frame lookup including name and id
+#create data frame lookup_s including name and id
 base_url    <- paste0("https://records.nhl.com/site/api/franchise-season-records")
 get_season  <- GET(base_url)
 season_cont <- content(get_season, "text", encoding = "UTF-8")
 season_json <- fromJSON(season_cont, flatten = TRUE)
 season_list <- as_tibble(season_json$data)
-lookup <- season_list[,c(14,15)]
-lookup
+lookup_s <- season_list[,c(14,15)]
+lookup_s
 ```
 
     ## # A tibble: 39 x 2
@@ -181,10 +243,10 @@ lookup
 season <- function(name) {
   if (is.null(name)){
     return(season_list)
-  }else if (name %in% lookup$franchiseId){
+  }else if (name %in% lookup_s$franchiseId){
     full_url <- paste0("https://records.nhl.com/site/api/franchise-season-records?cayenneExp=franchiseId=", name)
-  }else if (name %in% lookup$franchiseName){
-    id <- lookup %>% filter(franchiseName == name) %>% select(1)
+  }else if (toupper(name) %in% toupper(lookup_s$franchiseName)){
+    id <- lookup_s %>% filter(toupper(franchiseName) == toupper(name)) %>% select(1)
     full_url <- paste0("https://records.nhl.com/site/api/franchise-season-records?cayenneExp=franchiseId=", id)
   }else{
     stop("Wrong input!")
@@ -201,48 +263,46 @@ season(1)
 ```
 
     ## # A tibble: 1 x 57
-    ##      id fewestGoals fewestGoalsAgain… fewestGoalsAgain… fewestGoalsSeas… fewestLosses fewestLossesSea… fewestPoints fewestPointsSea… fewestTies
-    ##   <int>       <int>             <int> <chr>             <chr>                   <int> <chr>                   <int> <chr>                 <int>
-    ## 1     8         155               131 1955-56 (70)      1952-53 (70)                8 1976-77 (80)               65 1950-51 (70)              5
-    ## # … with 47 more variables: fewestTiesSeasons <chr>, fewestWins <int>, fewestWinsSeasons <chr>, franchiseId <int>, franchiseName <chr>,
-    ## #   homeLossStreak <int>, homeLossStreakDates <chr>, homePointStreak <int>, homePointStreakDates <chr>, homeWinStreak <int>,
-    ## #   homeWinStreakDates <chr>, homeWinlessStreak <int>, homeWinlessStreakDates <chr>, lossStreak <int>, lossStreakDates <chr>,
-    ## #   mostGameGoals <int>, mostGameGoalsDates <chr>, mostGoals <int>, mostGoalsAgainst <int>, mostGoalsAgainstSeasons <chr>,
-    ## #   mostGoalsSeasons <chr>, mostLosses <int>, mostLossesSeasons <chr>, mostPenaltyMinutes <int>, mostPenaltyMinutesSeasons <chr>,
-    ## #   mostPoints <int>, mostPointsSeasons <chr>, mostShutouts <int>, mostShutoutsSeasons <chr>, mostTies <int>, mostTiesSeasons <chr>,
-    ## #   mostWins <int>, mostWinsSeasons <chr>, pointStreak <int>, pointStreakDates <chr>, roadLossStreak <int>, roadLossStreakDates <chr>,
-    ## #   roadPointStreak <int>, roadPointStreakDates <chr>, roadWinStreak <int>, roadWinStreakDates <chr>, roadWinlessStreak <int>,
-    ## #   roadWinlessStreakDates <chr>, winStreak <int>, winStreakDates <chr>, winlessStreak <int>, winlessStreakDates <chr>
+    ##      id fewestGoals fewestGoalsAgain… fewestGoalsAgainstS… fewestGoalsSeas… fewestLosses fewestLossesSeas… fewestPoints fewestPointsSeas… fewestTies fewestTiesSeaso…
+    ##   <int>       <int>             <int> <chr>                <chr>                   <int> <chr>                    <int> <chr>                  <int> <chr>           
+    ## 1     8         155               131 1955-56 (70)         1952-53 (70)                8 1976-77 (80)                65 1950-51 (70)               5 1983-84 (80)    
+    ## # … with 46 more variables: fewestWins <int>, fewestWinsSeasons <chr>, franchiseId <int>, franchiseName <chr>, homeLossStreak <int>, homeLossStreakDates <chr>,
+    ## #   homePointStreak <int>, homePointStreakDates <chr>, homeWinStreak <int>, homeWinStreakDates <chr>, homeWinlessStreak <int>, homeWinlessStreakDates <chr>,
+    ## #   lossStreak <int>, lossStreakDates <chr>, mostGameGoals <int>, mostGameGoalsDates <chr>, mostGoals <int>, mostGoalsAgainst <int>, mostGoalsAgainstSeasons <chr>,
+    ## #   mostGoalsSeasons <chr>, mostLosses <int>, mostLossesSeasons <chr>, mostPenaltyMinutes <int>, mostPenaltyMinutesSeasons <chr>, mostPoints <int>,
+    ## #   mostPointsSeasons <chr>, mostShutouts <int>, mostShutoutsSeasons <chr>, mostTies <int>, mostTiesSeasons <chr>, mostWins <int>, mostWinsSeasons <chr>,
+    ## #   pointStreak <int>, pointStreakDates <chr>, roadLossStreak <int>, roadLossStreakDates <chr>, roadPointStreak <int>, roadPointStreakDates <chr>,
+    ## #   roadWinStreak <int>, roadWinStreakDates <chr>, roadWinlessStreak <int>, roadWinlessStreakDates <chr>, winStreak <int>, winStreakDates <chr>,
+    ## #   winlessStreak <int>, winlessStreakDates <chr>
 
 ``` r
-season("Montréal Canadiens")
+season("MOntréal Canadiens")
 ```
 
     ## # A tibble: 1 x 57
-    ##      id fewestGoals fewestGoalsAgain… fewestGoalsAgain… fewestGoalsSeas… fewestLosses fewestLossesSea… fewestPoints fewestPointsSea… fewestTies
-    ##   <int>       <int>             <int> <chr>             <chr>                   <int> <chr>                   <int> <chr>                 <int>
-    ## 1     8         155               131 1955-56 (70)      1952-53 (70)                8 1976-77 (80)               65 1950-51 (70)              5
-    ## # … with 47 more variables: fewestTiesSeasons <chr>, fewestWins <int>, fewestWinsSeasons <chr>, franchiseId <int>, franchiseName <chr>,
-    ## #   homeLossStreak <int>, homeLossStreakDates <chr>, homePointStreak <int>, homePointStreakDates <chr>, homeWinStreak <int>,
-    ## #   homeWinStreakDates <chr>, homeWinlessStreak <int>, homeWinlessStreakDates <chr>, lossStreak <int>, lossStreakDates <chr>,
-    ## #   mostGameGoals <int>, mostGameGoalsDates <chr>, mostGoals <int>, mostGoalsAgainst <int>, mostGoalsAgainstSeasons <chr>,
-    ## #   mostGoalsSeasons <chr>, mostLosses <int>, mostLossesSeasons <chr>, mostPenaltyMinutes <int>, mostPenaltyMinutesSeasons <chr>,
-    ## #   mostPoints <int>, mostPointsSeasons <chr>, mostShutouts <int>, mostShutoutsSeasons <chr>, mostTies <int>, mostTiesSeasons <chr>,
-    ## #   mostWins <int>, mostWinsSeasons <chr>, pointStreak <int>, pointStreakDates <chr>, roadLossStreak <int>, roadLossStreakDates <chr>,
-    ## #   roadPointStreak <int>, roadPointStreakDates <chr>, roadWinStreak <int>, roadWinStreakDates <chr>, roadWinlessStreak <int>,
-    ## #   roadWinlessStreakDates <chr>, winStreak <int>, winStreakDates <chr>, winlessStreak <int>, winlessStreakDates <chr>
+    ##      id fewestGoals fewestGoalsAgain… fewestGoalsAgainstS… fewestGoalsSeas… fewestLosses fewestLossesSeas… fewestPoints fewestPointsSeas… fewestTies fewestTiesSeaso…
+    ##   <int>       <int>             <int> <chr>                <chr>                   <int> <chr>                    <int> <chr>                  <int> <chr>           
+    ## 1     8         155               131 1955-56 (70)         1952-53 (70)                8 1976-77 (80)                65 1950-51 (70)               5 1983-84 (80)    
+    ## # … with 46 more variables: fewestWins <int>, fewestWinsSeasons <chr>, franchiseId <int>, franchiseName <chr>, homeLossStreak <int>, homeLossStreakDates <chr>,
+    ## #   homePointStreak <int>, homePointStreakDates <chr>, homeWinStreak <int>, homeWinStreakDates <chr>, homeWinlessStreak <int>, homeWinlessStreakDates <chr>,
+    ## #   lossStreak <int>, lossStreakDates <chr>, mostGameGoals <int>, mostGameGoalsDates <chr>, mostGoals <int>, mostGoalsAgainst <int>, mostGoalsAgainstSeasons <chr>,
+    ## #   mostGoalsSeasons <chr>, mostLosses <int>, mostLossesSeasons <chr>, mostPenaltyMinutes <int>, mostPenaltyMinutesSeasons <chr>, mostPoints <int>,
+    ## #   mostPointsSeasons <chr>, mostShutouts <int>, mostShutoutsSeasons <chr>, mostTies <int>, mostTiesSeasons <chr>, mostWins <int>, mostWinsSeasons <chr>,
+    ## #   pointStreak <int>, pointStreakDates <chr>, roadLossStreak <int>, roadLossStreakDates <chr>, roadPointStreak <int>, roadPointStreakDates <chr>,
+    ## #   roadWinStreak <int>, roadWinStreakDates <chr>, roadWinlessStreak <int>, roadWinlessStreakDates <chr>, winStreak <int>, winStreakDates <chr>,
+    ## #   winlessStreak <int>, winlessStreakDates <chr>
 
 #### Function to return goalie records
 
 ``` r
-#create data frame lookup
+#create data frame lookup_g
 base_url <- paste0("https://records.nhl.com/site/api/franchise-goalie-records")
 get_goalie  <- GET(base_url)
 goalie_cont <- content(get_goalie, "text", encoding = "UTF-8")
 goalie_json <- fromJSON(goalie_cont, flatten = TRUE)
 goalie_list <- as_tibble(goalie_json$data)
-lookup <- goalie_list[ , c(4, 5)]
-lookup
+lookup_g <- goalie_list[ , c(4, 5)]
+lookup_g
 ```
 
     ## # A tibble: 1,078 x 2
@@ -265,10 +325,10 @@ lookup
 goalie <- function(name) {
   if (is.null(name)){
     return(goalie_list)
-  }else if (name %in% lookup$franchiseId){
+  }else if (name %in% lookup_g$franchiseId){
     full_url <- paste0("https://records.nhl.com/site/api/franchise-goalie-records?cayenneExp=franchiseId=", name)
-  }else if (name %in% lookup$franchiseName){
-    id <- lookup %>% filter(franchiseName == name) %>% select(1) %>% unique()
+  }else if (toupper(name) %in% toupper(lookup_g$franchiseName)){
+    id <- lookup_g %>% filter(toupper(franchiseName) == toupper(name)) %>% select(1) %>% unique()
     full_url <- paste0("https://records.nhl.com/site/api/franchise-goalie-records?cayenneExp=franchiseId=", id)
   }else{
     stop("Wrong input!")
@@ -285,56 +345,54 @@ goalie(15)
 ```
 
     ## # A tibble: 37 x 29
-    ##       id activePlayer firstName franchiseId franchiseName gameTypeId gamesPlayed lastName  losses mostGoalsAgainstDates       mostGoalsAgainst…
-    ##    <int> <lgl>        <chr>           <int> <chr>              <int>       <int> <chr>      <int> <chr>                                   <int>
-    ##  1   235 FALSE        Don                15 Dallas Stars           2         315 Beaupre      125 1983-10-07                                 10
-    ##  2   344 FALSE        Ed                 15 Dallas Stars           2         307 Belfour       95 2001-01-30                                  8
-    ##  3   351 FALSE        Allan              15 Dallas Stars           2          10 Bester         5 1996-02-02                                  5
-    ##  4   354 FALSE        Daniel             15 Dallas Stars           2           5 Berthiau…      3 1990-02-04, 1990-01-31                      4
-    ##  5   399 FALSE        Gary               15 Dallas Stars           2          51 Edwards       18 1979-03-11, 1978-11-11                      8
-    ##  6   451 FALSE        Brian              15 Dallas Stars           2          26 Hayward       15 1991-01-02                                  6
-    ##  7   488 FALSE        Jean               15 Dallas Stars           2           1 Levasseur      1 1980-02-24                                  7
-    ##  8   503 FALSE        Markus             15 Dallas Stars           2           2 Mattsson       1 1983-01-15                                  6
-    ##  9   513 FALSE        Roland             15 Dallas Stars           2          26 Melanson      11 1984-12-01                                  8
-    ## 10   515 FALSE        Gilles             15 Dallas Stars           2         327 Meloche      117 1985-03-13, 1984-01-27, 19…                 8
-    ## # … with 27 more rows, and 18 more variables: mostSavesDates <chr>, mostSavesOneGame <int>, mostShotsAgainstDates <chr>,
-    ## #   mostShotsAgainstOneGame <int>, mostShutoutsOneSeason <int>, mostShutoutsSeasonIds <chr>, mostWinsOneSeason <int>, mostWinsSeasonIds <chr>,
-    ## #   overtimeLosses <int>, playerId <int>, positionCode <chr>, rookieGamesPlayed <int>, rookieShutouts <int>, rookieWins <int>, seasons <int>,
-    ## #   shutouts <int>, ties <int>, wins <int>
+    ##       id activePlayer firstName franchiseId franchiseName gameTypeId gamesPlayed lastName  losses mostGoalsAgainstD… mostGoalsAgains… mostSavesDates mostSavesOneGame
+    ##    <int> <lgl>        <chr>           <int> <chr>              <int>       <int> <chr>      <int> <chr>                         <int> <chr>                     <int>
+    ##  1   235 FALSE        Don                15 Dallas Stars           2         315 Beaupre      125 1983-10-07                       10 1987-03-15                   52
+    ##  2   344 FALSE        Ed                 15 Dallas Stars           2         307 Belfour       95 2001-01-30                        8 1998-04-15                   44
+    ##  3   351 FALSE        Allan              15 Dallas Stars           2          10 Bester         5 1996-02-02                        5 1996-01-22                   35
+    ##  4   354 FALSE        Daniel             15 Dallas Stars           2           5 Berthiau…      3 1990-02-04, 1990-…                4 1990-01-31                   25
+    ##  5   399 FALSE        Gary               15 Dallas Stars           2          51 Edwards       18 1979-03-11, 1978-…                8 1979-01-16                   38
+    ##  6   451 FALSE        Brian              15 Dallas Stars           2          26 Hayward       15 1991-01-02                        6 1990-11-19                   35
+    ##  7   488 FALSE        Jean               15 Dallas Stars           2           1 Levasseur      1 1980-02-24                        7 1980-02-24                   29
+    ##  8   503 FALSE        Markus             15 Dallas Stars           2           2 Mattsson       1 1983-01-15                        6 1983-01-12                   40
+    ##  9   513 FALSE        Roland             15 Dallas Stars           2          26 Melanson      11 1984-12-01                        8 1985-03-16, 1…               36
+    ## 10   515 FALSE        Gilles             15 Dallas Stars           2         327 Meloche      117 1985-03-13, 1984-…                8 1984-01-05                   49
+    ## # … with 27 more rows, and 16 more variables: mostShotsAgainstDates <chr>, mostShotsAgainstOneGame <int>, mostShutoutsOneSeason <int>, mostShutoutsSeasonIds <chr>,
+    ## #   mostWinsOneSeason <int>, mostWinsSeasonIds <chr>, overtimeLosses <int>, playerId <int>, positionCode <chr>, rookieGamesPlayed <int>, rookieShutouts <int>,
+    ## #   rookieWins <int>, seasons <int>, shutouts <int>, ties <int>, wins <int>
 
 ``` r
-goalie("Dallas Stars")
+goalie("DAllas Stars")
 ```
 
     ## # A tibble: 37 x 29
-    ##       id activePlayer firstName franchiseId franchiseName gameTypeId gamesPlayed lastName  losses mostGoalsAgainstDates       mostGoalsAgainst…
-    ##    <int> <lgl>        <chr>           <int> <chr>              <int>       <int> <chr>      <int> <chr>                                   <int>
-    ##  1   235 FALSE        Don                15 Dallas Stars           2         315 Beaupre      125 1983-10-07                                 10
-    ##  2   344 FALSE        Ed                 15 Dallas Stars           2         307 Belfour       95 2001-01-30                                  8
-    ##  3   351 FALSE        Allan              15 Dallas Stars           2          10 Bester         5 1996-02-02                                  5
-    ##  4   354 FALSE        Daniel             15 Dallas Stars           2           5 Berthiau…      3 1990-02-04, 1990-01-31                      4
-    ##  5   399 FALSE        Gary               15 Dallas Stars           2          51 Edwards       18 1979-03-11, 1978-11-11                      8
-    ##  6   451 FALSE        Brian              15 Dallas Stars           2          26 Hayward       15 1991-01-02                                  6
-    ##  7   488 FALSE        Jean               15 Dallas Stars           2           1 Levasseur      1 1980-02-24                                  7
-    ##  8   503 FALSE        Markus             15 Dallas Stars           2           2 Mattsson       1 1983-01-15                                  6
-    ##  9   513 FALSE        Roland             15 Dallas Stars           2          26 Melanson      11 1984-12-01                                  8
-    ## 10   515 FALSE        Gilles             15 Dallas Stars           2         327 Meloche      117 1985-03-13, 1984-01-27, 19…                 8
-    ## # … with 27 more rows, and 18 more variables: mostSavesDates <chr>, mostSavesOneGame <int>, mostShotsAgainstDates <chr>,
-    ## #   mostShotsAgainstOneGame <int>, mostShutoutsOneSeason <int>, mostShutoutsSeasonIds <chr>, mostWinsOneSeason <int>, mostWinsSeasonIds <chr>,
-    ## #   overtimeLosses <int>, playerId <int>, positionCode <chr>, rookieGamesPlayed <int>, rookieShutouts <int>, rookieWins <int>, seasons <int>,
-    ## #   shutouts <int>, ties <int>, wins <int>
+    ##       id activePlayer firstName franchiseId franchiseName gameTypeId gamesPlayed lastName  losses mostGoalsAgainstD… mostGoalsAgains… mostSavesDates mostSavesOneGame
+    ##    <int> <lgl>        <chr>           <int> <chr>              <int>       <int> <chr>      <int> <chr>                         <int> <chr>                     <int>
+    ##  1   235 FALSE        Don                15 Dallas Stars           2         315 Beaupre      125 1983-10-07                       10 1987-03-15                   52
+    ##  2   344 FALSE        Ed                 15 Dallas Stars           2         307 Belfour       95 2001-01-30                        8 1998-04-15                   44
+    ##  3   351 FALSE        Allan              15 Dallas Stars           2          10 Bester         5 1996-02-02                        5 1996-01-22                   35
+    ##  4   354 FALSE        Daniel             15 Dallas Stars           2           5 Berthiau…      3 1990-02-04, 1990-…                4 1990-01-31                   25
+    ##  5   399 FALSE        Gary               15 Dallas Stars           2          51 Edwards       18 1979-03-11, 1978-…                8 1979-01-16                   38
+    ##  6   451 FALSE        Brian              15 Dallas Stars           2          26 Hayward       15 1991-01-02                        6 1990-11-19                   35
+    ##  7   488 FALSE        Jean               15 Dallas Stars           2           1 Levasseur      1 1980-02-24                        7 1980-02-24                   29
+    ##  8   503 FALSE        Markus             15 Dallas Stars           2           2 Mattsson       1 1983-01-15                        6 1983-01-12                   40
+    ##  9   513 FALSE        Roland             15 Dallas Stars           2          26 Melanson      11 1984-12-01                        8 1985-03-16, 1…               36
+    ## 10   515 FALSE        Gilles             15 Dallas Stars           2         327 Meloche      117 1985-03-13, 1984-…                8 1984-01-05                   49
+    ## # … with 27 more rows, and 16 more variables: mostShotsAgainstDates <chr>, mostShotsAgainstOneGame <int>, mostShutoutsOneSeason <int>, mostShutoutsSeasonIds <chr>,
+    ## #   mostWinsOneSeason <int>, mostWinsSeasonIds <chr>, overtimeLosses <int>, playerId <int>, positionCode <chr>, rookieGamesPlayed <int>, rookieShutouts <int>,
+    ## #   rookieWins <int>, seasons <int>, shutouts <int>, ties <int>, wins <int>
 
 #### Function to return skater records
 
 ``` r
-#create data frame lookup
+#create data frame lookup_sk
 base_url <- paste0("https://records.nhl.com/site/api/franchise-skater-records")
 get_skater  <- GET(base_url)
 skater_cont <- content(get_skater, "text", encoding = "UTF-8")
 skater_json <- fromJSON(skater_cont, flatten = TRUE)
 skater_list <- as_tibble(skater_json$data)
-lookup <- skater_list[ , c(5, 6)]
-lookup
+lookup_sk <- skater_list[ , c(5, 6)]
+lookup_sk
 ```
 
     ## # A tibble: 17,209 x 2
@@ -357,10 +415,10 @@ lookup
 skater <- function(name) {
   if (is.null(name)){
     return(skater_list)
-  }else if (name %in% lookup$franchiseId){
+  }else if (name %in% lookup_sk$franchiseId){
     full_url <- paste0("https://records.nhl.com/site/api/franchise-skater-records?cayenneExp=franchiseId=", name)
-  }else if (name %in% lookup$franchiseName){
-    id <- lookup %>% filter(franchiseName == name) %>% select(1) %>% unique()
+  }else if (toupper(name) %in% toupper(lookup_sk$franchiseName)){
+    id <- lookup_sk %>% filter(toupper(franchiseName) == toupper(name)) %>% select(1) %>% unique()
     full_url <- paste0("https://records.nhl.com/site/api/franchise-skater-records?cayenneExp=franchiseId=", id)
   }else{
     stop("Wrong input!")
@@ -377,58 +435,56 @@ skater(1)
 ```
 
     ## # A tibble: 800 x 31
-    ##       id activePlayer assists firstName franchiseId franchiseName  gameTypeId gamesPlayed goals lastName mostAssistsGameDates  mostAssistsOneG…
-    ##    <int> <lgl>          <int> <chr>           <int> <chr>               <int>       <int> <int> <chr>    <chr>                            <int>
-    ##  1 17199 FALSE              0 Reg                 1 Montréal Cana…          2           3     0 Abbott   1952-10-09, 1952-10-…                0
-    ##  2 17223 FALSE              2 Art                 1 Montréal Cana…          2          11     0 Alexand… 1932-03-08, 1932-03-…                1
-    ##  3 17272 FALSE              0 Dave                1 Montréal Cana…          2           3     0 Allison  1983-10-06, 1983-10-…                0
-    ##  4 17351 FALSE              0 Ossie               1 Montréal Cana…          2           2     0 Asmunds… 1937-11-09, 1937-11-…                0
-    ##  5 17389 FALSE              0 Ron                 1 Montréal Cana…          2           6     0 Andruff  1974-10-09, 1974-10-…                0
-    ##  6 17440 FALSE              0 Jimmy               1 Montréal Cana…          2           2     0 Bartlett 1954-10-07, 1954-10-…                0
-    ##  7 17484 FALSE              0 Max                 1 Montréal Cana…          2           1     0 Bennett  1935-11-12, 1935-11-…                0
-    ##  8 17508 FALSE              0 Bob                 1 Montréal Cana…          2           2     0 Berry    1968-10-12, 1968-10-…                0
-    ##  9 17544 FALSE              0 Garry               1 Montréal Cana…          2           1     0 Blaine   1954-10-07, 1954-10-…                0
-    ## 10 17623 FALSE              0 Conrad              1 Montréal Cana…          2           6     0 Bourcier 1935-11-12, 1935-11-…                0
-    ## # … with 790 more rows, and 19 more variables: mostAssistsOneSeason <int>, mostAssistsSeasonIds <chr>, mostGoalsGameDates <chr>,
-    ## #   mostGoalsOneGame <int>, mostGoalsOneSeason <int>, mostGoalsSeasonIds <chr>, mostPenaltyMinutesOneSeason <int>,
-    ## #   mostPenaltyMinutesSeasonIds <chr>, mostPointsGameDates <chr>, mostPointsOneGame <int>, mostPointsOneSeason <int>,
-    ## #   mostPointsSeasonIds <chr>, penaltyMinutes <int>, playerId <int>, points <int>, positionCode <chr>, rookieGamesPlayed <int>,
+    ##       id activePlayer assists firstName franchiseId franchiseName  gameTypeId gamesPlayed goals lastName mostAssistsGameDates       mostAssistsOneG… mostAssistsOneS…
+    ##    <int> <lgl>          <int> <chr>           <int> <chr>               <int>       <int> <int> <chr>    <chr>                                 <int>            <int>
+    ##  1 17199 FALSE              0 Reg                 1 Montréal Cana…          2           3     0 Abbott   1952-10-09, 1952-10-11, 1…                0                0
+    ##  2 17223 FALSE              2 Art                 1 Montréal Cana…          2          11     0 Alexand… 1932-03-08, 1932-03-12                    1                2
+    ##  3 17272 FALSE              0 Dave                1 Montréal Cana…          2           3     0 Allison  1983-10-06, 1983-10-08, 1…                0                0
+    ##  4 17351 FALSE              0 Ossie               1 Montréal Cana…          2           2     0 Asmunds… 1937-11-09, 1937-11-11, 1…                0                0
+    ##  5 17389 FALSE              0 Ron                 1 Montréal Cana…          2           6     0 Andruff  1974-10-09, 1974-10-12, 1…                0                0
+    ##  6 17440 FALSE              0 Jimmy               1 Montréal Cana…          2           2     0 Bartlett 1954-10-07, 1954-10-09, 1…                0                0
+    ##  7 17484 FALSE              0 Max                 1 Montréal Cana…          2           1     0 Bennett  1935-11-12, 1935-11-17, 1…                0                0
+    ##  8 17508 FALSE              0 Bob                 1 Montréal Cana…          2           2     0 Berry    1968-10-12, 1968-10-16, 1…                0                0
+    ##  9 17544 FALSE              0 Garry               1 Montréal Cana…          2           1     0 Blaine   1954-10-07, 1954-10-09, 1…                0                0
+    ## 10 17623 FALSE              0 Conrad              1 Montréal Cana…          2           6     0 Bourcier 1935-11-12, 1935-11-17, 1…                0                0
+    ## # … with 790 more rows, and 18 more variables: mostAssistsSeasonIds <chr>, mostGoalsGameDates <chr>, mostGoalsOneGame <int>, mostGoalsOneSeason <int>,
+    ## #   mostGoalsSeasonIds <chr>, mostPenaltyMinutesOneSeason <int>, mostPenaltyMinutesSeasonIds <chr>, mostPointsGameDates <chr>, mostPointsOneGame <int>,
+    ## #   mostPointsOneSeason <int>, mostPointsSeasonIds <chr>, penaltyMinutes <int>, playerId <int>, points <int>, positionCode <chr>, rookieGamesPlayed <int>,
     ## #   rookiePoints <int>, seasons <int>
 
 ``` r
-skater("Washington Capitals")
+skater("WAshington Capitals")
 ```
 
     ## # A tibble: 521 x 31
-    ##       id activePlayer assists firstName franchiseId franchiseName  gameTypeId gamesPlayed goals lastName mostAssistsGameDates  mostAssistsOneG…
-    ##    <int> <lgl>          <int> <chr>           <int> <chr>               <int>       <int> <int> <chr>    <chr>                            <int>
-    ##  1 17250 FALSE              0 Keith              24 Washington Ca…          2           6     0 Acton    1993-10-06, 1993-10-…                0
-    ##  2 17280 FALSE              1 Murray             24 Washington Ca…          2          40     0 Anderson 1975-02-22                           1
-    ##  3 17541 FALSE              2 Chuck              24 Washington Ca…          2          13     0 Arnason  1979-03-21, 1979-04-…                1
-    ##  4 17705 FALSE              0 Bob                24 Washington Ca…          2           2     0 Babcock  1990-10-10, 1990-10-…                0
-    ##  5 17941 FALSE              0 Yves               24 Washington Ca…          2          11     0 Beaudoin 1985-10-10, 1985-10-…                0
-    ##  6 17991 FALSE              1 Benoit             24 Washington Ca…          2           9     0 Hogue    2002-03-26                           1
-    ##  7 18313 FALSE              6 Jeff               24 Washington Ca…          2           9     0 Brown    1998-03-28                           2
-    ##  8 18520 FALSE              0 Eric               24 Washington Ca…          2           2     0 Calder   1981-10-07, 1981-10-…                0
-    ##  9 18544 FALSE              0 Tony               24 Washington Ca…          2           3     0 Camazzo… 1981-10-07, 1981-10-…                0
-    ## 10 18733 FALSE              2 Tom                24 Washington Ca…          2          17     0 Chorske  1998-11-07, 1999-03-…                1
-    ## # … with 511 more rows, and 19 more variables: mostAssistsOneSeason <int>, mostAssistsSeasonIds <chr>, mostGoalsGameDates <chr>,
-    ## #   mostGoalsOneGame <int>, mostGoalsOneSeason <int>, mostGoalsSeasonIds <chr>, mostPenaltyMinutesOneSeason <int>,
-    ## #   mostPenaltyMinutesSeasonIds <chr>, mostPointsGameDates <chr>, mostPointsOneGame <int>, mostPointsOneSeason <int>,
-    ## #   mostPointsSeasonIds <chr>, penaltyMinutes <int>, playerId <int>, points <int>, positionCode <chr>, rookieGamesPlayed <int>,
+    ##       id activePlayer assists firstName franchiseId franchiseName  gameTypeId gamesPlayed goals lastName mostAssistsGameDates       mostAssistsOneG… mostAssistsOneS…
+    ##    <int> <lgl>          <int> <chr>           <int> <chr>               <int>       <int> <int> <chr>    <chr>                                 <int>            <int>
+    ##  1 17250 FALSE              0 Keith              24 Washington Ca…          2           6     0 Acton    1993-10-06, 1993-10-08, 1…                0                0
+    ##  2 17280 FALSE              1 Murray             24 Washington Ca…          2          40     0 Anderson 1975-02-22                                1                1
+    ##  3 17541 FALSE              2 Chuck              24 Washington Ca…          2          13     0 Arnason  1979-03-21, 1979-04-08                    1                2
+    ##  4 17705 FALSE              0 Bob                24 Washington Ca…          2           2     0 Babcock  1990-10-10, 1990-10-12, 1…                0                0
+    ##  5 17941 FALSE              0 Yves               24 Washington Ca…          2          11     0 Beaudoin 1985-10-10, 1985-10-12, 1…                0                0
+    ##  6 17991 FALSE              1 Benoit             24 Washington Ca…          2           9     0 Hogue    2002-03-26                                1                1
+    ##  7 18313 FALSE              6 Jeff               24 Washington Ca…          2           9     0 Brown    1998-03-28                                2                6
+    ##  8 18520 FALSE              0 Eric               24 Washington Ca…          2           2     0 Calder   1981-10-07, 1981-10-10, 1…                0                0
+    ##  9 18544 FALSE              0 Tony               24 Washington Ca…          2           3     0 Camazzo… 1981-10-07, 1981-10-10, 1…                0                0
+    ## 10 18733 FALSE              2 Tom                24 Washington Ca…          2          17     0 Chorske  1998-11-07, 1999-03-15                    1                2
+    ## # … with 511 more rows, and 18 more variables: mostAssistsSeasonIds <chr>, mostGoalsGameDates <chr>, mostGoalsOneGame <int>, mostGoalsOneSeason <int>,
+    ## #   mostGoalsSeasonIds <chr>, mostPenaltyMinutesOneSeason <int>, mostPenaltyMinutesSeasonIds <chr>, mostPointsGameDates <chr>, mostPointsOneGame <int>,
+    ## #   mostPointsOneSeason <int>, mostPointsSeasonIds <chr>, penaltyMinutes <int>, playerId <int>, points <int>, positionCode <chr>, rookieGamesPlayed <int>,
     ## #   rookiePoints <int>, seasons <int>
 
 #### Function to return detail records
 
 ``` r
-#create data frame lookup
+#create data frame lookup_d
 base_url <- paste0("https://records.nhl.com/site/api/franchise-detail?")
 get_detail  <- GET(base_url)
 detail_cont <- content(get_detail, "text", encoding = "UTF-8")
 detail_json <- fromJSON(detail_cont, flatten = TRUE)
 detail_list <- as_tibble(detail_json$data)
-lookup <- detail_list[, c(10,13)]
-lookup
+lookup_d <- detail_list[, c(10,13)]
+lookup_d
 ```
 
     ## # A tibble: 39 x 2
@@ -452,10 +508,10 @@ detail<- function(name) {
   if (is.null(name)){
     return(detail_list)
   }
-  if (name %in% lookup$mostRecentTeamId){
+  if (name %in% lookup_d$mostRecentTeamId){
     full_url <- paste0("https://records.nhl.com/site/api/franchise-detail?cayenneExp=mostRecentTeamId=", name)
-  }else if (name %in% lookup$teamFullName){
-    id <- lookup %>% filter(teamFullName == name) %>% select(1) %>% unique()
+  }else if (toupper(name) %in% toupper(lookup_d$teamFullName)){
+    id <- lookup_d %>% filter(toupper(teamFullName) == toupper(name)) %>% select(1) %>% unique()
     full_url <- paste0("https://records.nhl.com/site/api/franchise-detail?cayenneExp=mostRecentTeamId=", id)
   }else{
     stop("Wrong input!")
@@ -472,33 +528,33 @@ detail(15)
 ```
 
     ## # A tibble: 1 x 13
-    ##      id active captainHistory     coachingHistory     dateAwarded directoryUrl firstSeasonId generalManagerHist… heroImageUrl  mostRecentTeamId
-    ##   <int> <lgl>  <chr>              <chr>               <chr>       <chr>                <int> <chr>               <chr>                    <int>
-    ## 1    24 TRUE   "<ul class=\"stri… "<ul class=\"strip… 1974-06-11… https://www…      19741975 "<ul class=\"strip… https://reco…               15
-    ## # … with 3 more variables: retiredNumbersSummary <chr>, teamAbbrev <chr>, teamFullName <chr>
+    ##      id active captainHistory   coachingHistory   dateAwarded directoryUrl firstSeasonId generalManagerHi… heroImageUrl mostRecentTeamId retiredNumbersSu… teamAbbrev
+    ##   <int> <lgl>  <chr>            <chr>             <chr>       <chr>                <int> <chr>             <chr>                   <int> <chr>             <chr>     
+    ## 1    24 TRUE   "<ul class=\"st… "<ul class=\"str… 1974-06-11… https://www…      19741975 "<ul class=\"str… https://rec…               15 "<ul class=\"str… WSH       
+    ## # … with 1 more variable: teamFullName <chr>
 
 ``` r
-detail("Dallas Stars")
+detail("DAllas Stars")
 ```
 
     ## # A tibble: 1 x 13
-    ##      id active captainHistory     coachingHistory     dateAwarded directoryUrl firstSeasonId generalManagerHist… heroImageUrl  mostRecentTeamId
-    ##   <int> <lgl>  <chr>              <chr>               <chr>       <chr>                <int> <chr>               <chr>                    <int>
-    ## 1    15 TRUE   "<ul class=\"stri… "<ul class=\"strip… 1967-06-05… https://www…      19671968 "<ul class=\"strip… https://reco…               25
-    ## # … with 3 more variables: retiredNumbersSummary <chr>, teamAbbrev <chr>, teamFullName <chr>
+    ##      id active captainHistory   coachingHistory   dateAwarded directoryUrl firstSeasonId generalManagerHi… heroImageUrl mostRecentTeamId retiredNumbersSu… teamAbbrev
+    ##   <int> <lgl>  <chr>            <chr>             <chr>       <chr>                <int> <chr>             <chr>                   <int> <chr>             <chr>     
+    ## 1    15 TRUE   "<ul class=\"st… "<ul class=\"str… 1967-06-05… https://www…      19671968 "<ul class=\"str… https://rec…               25 "<ul class=\"str… DAL       
+    ## # … with 1 more variable: teamFullName <chr>
 
 ### Function to contact the NHL stats API
 
 ``` r
-#create data frame lookup
+#create data frame lookup_st
 full_url <- paste0("https://statsapi.web.nhl.com/api/v1/teams", "?expand=team.stats")
 get_stats  <- GET(full_url)
 stats_cont <- content(get_stats, "text", encoding = "UTF-8")
 stats_json <- fromJSON(stats_cont, flatten = TRUE)
 stats_list <- as_tibble(stats_json$teams)
-lookup <- stats_list[, c(1:2)]
-lookup <- rename(lookup, teamName = name)
-lookup
+lookup_st <- stats_list[, c(1:2)]
+lookup_st <- rename(lookup_st, teamName = name)
+lookup_st
 ```
 
     ## # A tibble: 32 x 2
@@ -521,11 +577,11 @@ lookup
 stats <- function(name) {
   if (is.null(name)){
     return(stats_list)
-  }else if (name %in% lookup$id){
+  }else if (name %in% lookup_st$id){
     full_url <- paste0("https://statsapi.web.nhl.com/api/v1/teams/", name,
                            "/?expand=team.stats")
-  }else if (name %in% lookup$teamName){
-    id <- lookup %>% filter(teamName == name) %>% select(1)
+  }else if (toupper(name) %in% toupper(lookup_st$teamName)){
+    id <- lookup_st %>% filter(toupper(teamName) == toupper(name)) %>% select(1)
     full_url <- paste0("https://statsapi.web.nhl.com/api/v1/teams/", id,
                            "/?expand=team.stats")
   }else{
@@ -544,42 +600,38 @@ stats(15)
 ```
 
     ## # A tibble: 2 x 65
-    ##      id name     link    abbreviation teamName locationName firstYearOfPlay stat.gamesPlayed stat.wins stat.losses stat.ot stat.pts stat.ptPctg
-    ##   <int> <chr>    <chr>   <chr>        <chr>    <chr>        <chr>                      <int> <chr>     <chr>       <chr>   <chr>    <chr>      
-    ## 1    15 Washing… /api/v… WSH          Capitals Washington   1974                          56 36        15          5       77       68.8       
-    ## 2    15 Washing… /api/v… WSH          Capitals Washington   1974                          NA 6th       6th         20th    6th      6th        
-    ## # … with 52 more variables: stat.goalsPerGame <chr>, stat.goalsAgainstPerGame <chr>, stat.evGGARatio <chr>, stat.powerPlayPercentage <chr>,
-    ## #   stat.powerPlayGoals <chr>, stat.powerPlayGoalsAgainst <chr>, stat.powerPlayOpportunities <chr>, stat.penaltyKillPercentage <chr>,
-    ## #   stat.shotsPerGame <chr>, stat.shotsAllowed <chr>, stat.winScoreFirst <chr>, stat.winOppScoreFirst <chr>, stat.winLeadFirstPer <chr>,
-    ## #   stat.winLeadSecondPer <chr>, stat.winOutshootOpp <chr>, stat.winOutshotByOpp <chr>, stat.faceOffsTaken <chr>, stat.faceOffsWon <chr>,
-    ## #   stat.faceOffsLost <chr>, stat.faceOffWinPercentage <chr>, stat.shootingPctg <dbl>, stat.savePctg <dbl>,
-    ## #   stat.penaltyKillOpportunities <chr>, stat.savePctRank <chr>, stat.shootingPctRank <chr>, team.id <int>, team.name <chr>, team.link <chr>,
-    ## #   type.displayName <chr>, type.gameType.id <chr>, type.gameType.description <chr>, type.gameType.postseason <lgl>, shortName <chr>,
-    ## #   officialSiteUrl <chr>, franchiseId <int>, active <lgl>, venue.id <int>, venue.name <chr>, venue.link <chr>, venue.city <chr>,
-    ## #   venue.timeZone.id <chr>, venue.timeZone.offset <int>, venue.timeZone.tz <chr>, division.id <int>, division.name <chr>,
-    ## #   division.link <chr>, conference.id <int>, conference.name <chr>, conference.link <chr>, franchise.franchiseId <int>,
-    ## #   franchise.teamName <chr>, franchise.link <chr>
+    ##      id name        link      abbreviation teamName locationName firstYearOfPlay stat.gamesPlayed stat.wins stat.losses stat.ot stat.pts stat.ptPctg stat.goalsPerGa…
+    ##   <int> <chr>       <chr>     <chr>        <chr>    <chr>        <chr>                      <int> <chr>     <chr>       <chr>   <chr>    <chr>       <chr>           
+    ## 1    15 Washington… /api/v1/… WSH          Capitals Washington   1974                          56 36        15          5       77       68.8        3.357           
+    ## 2    15 Washington… /api/v1/… WSH          Capitals Washington   1974                          NA 6th       6th         20th    6th      6th         5th             
+    ## # … with 51 more variables: stat.goalsAgainstPerGame <chr>, stat.evGGARatio <chr>, stat.powerPlayPercentage <chr>, stat.powerPlayGoals <chr>,
+    ## #   stat.powerPlayGoalsAgainst <chr>, stat.powerPlayOpportunities <chr>, stat.penaltyKillPercentage <chr>, stat.shotsPerGame <chr>, stat.shotsAllowed <chr>,
+    ## #   stat.winScoreFirst <chr>, stat.winOppScoreFirst <chr>, stat.winLeadFirstPer <chr>, stat.winLeadSecondPer <chr>, stat.winOutshootOpp <chr>,
+    ## #   stat.winOutshotByOpp <chr>, stat.faceOffsTaken <chr>, stat.faceOffsWon <chr>, stat.faceOffsLost <chr>, stat.faceOffWinPercentage <chr>, stat.shootingPctg <dbl>,
+    ## #   stat.savePctg <dbl>, stat.penaltyKillOpportunities <chr>, stat.savePctRank <chr>, stat.shootingPctRank <chr>, team.id <int>, team.name <chr>, team.link <chr>,
+    ## #   type.displayName <chr>, type.gameType.id <chr>, type.gameType.description <chr>, type.gameType.postseason <lgl>, shortName <chr>, officialSiteUrl <chr>,
+    ## #   franchiseId <int>, active <lgl>, venue.id <int>, venue.name <chr>, venue.link <chr>, venue.city <chr>, venue.timeZone.id <chr>, venue.timeZone.offset <int>,
+    ## #   venue.timeZone.tz <chr>, division.id <int>, division.name <chr>, division.link <chr>, conference.id <int>, conference.name <chr>, conference.link <chr>,
+    ## #   franchise.franchiseId <int>, franchise.teamName <chr>, franchise.link <chr>
 
 ``` r
-stats("Dallas Stars")
+stats("DAllas Stars")
 ```
 
     ## # A tibble: 2 x 65
-    ##      id name    link     abbreviation teamName locationName firstYearOfPlay stat.gamesPlayed stat.wins stat.losses stat.ot stat.pts stat.ptPctg
-    ##   <int> <chr>   <chr>    <chr>        <chr>    <chr>        <chr>                      <int> <chr>     <chr>       <chr>   <chr>    <chr>      
-    ## 1    25 Dallas… /api/v1… DAL          Stars    Dallas       1967                          56 23        19          14      60       53.6       
-    ## 2    25 Dallas… /api/v1… DAL          Stars    Dallas       1967                          NA 22nd      13th        1st     16th     16th       
-    ## # … with 52 more variables: stat.goalsPerGame <chr>, stat.goalsAgainstPerGame <chr>, stat.evGGARatio <chr>, stat.powerPlayPercentage <chr>,
-    ## #   stat.powerPlayGoals <chr>, stat.powerPlayGoalsAgainst <chr>, stat.powerPlayOpportunities <chr>, stat.penaltyKillPercentage <chr>,
-    ## #   stat.shotsPerGame <chr>, stat.shotsAllowed <chr>, stat.winScoreFirst <chr>, stat.winOppScoreFirst <chr>, stat.winLeadFirstPer <chr>,
-    ## #   stat.winLeadSecondPer <chr>, stat.winOutshootOpp <chr>, stat.winOutshotByOpp <chr>, stat.faceOffsTaken <chr>, stat.faceOffsWon <chr>,
-    ## #   stat.faceOffsLost <chr>, stat.faceOffWinPercentage <chr>, stat.shootingPctg <dbl>, stat.savePctg <dbl>,
-    ## #   stat.penaltyKillOpportunities <chr>, stat.savePctRank <chr>, stat.shootingPctRank <chr>, team.id <int>, team.name <chr>, team.link <chr>,
-    ## #   type.displayName <chr>, type.gameType.id <chr>, type.gameType.description <chr>, type.gameType.postseason <lgl>, shortName <chr>,
-    ## #   officialSiteUrl <chr>, franchiseId <int>, active <lgl>, venue.id <int>, venue.name <chr>, venue.link <chr>, venue.city <chr>,
-    ## #   venue.timeZone.id <chr>, venue.timeZone.offset <int>, venue.timeZone.tz <chr>, division.id <int>, division.name <chr>,
-    ## #   division.link <chr>, conference.id <int>, conference.name <chr>, conference.link <chr>, franchise.franchiseId <int>,
-    ## #   franchise.teamName <chr>, franchise.link <chr>
+    ##      id name      link        abbreviation teamName locationName firstYearOfPlay stat.gamesPlayed stat.wins stat.losses stat.ot stat.pts stat.ptPctg stat.goalsPerGa…
+    ##   <int> <chr>     <chr>       <chr>        <chr>    <chr>        <chr>                      <int> <chr>     <chr>       <chr>   <chr>    <chr>       <chr>           
+    ## 1    25 Dallas S… /api/v1/te… DAL          Stars    Dallas       1967                          56 23        19          14      60       53.6        2.786           
+    ## 2    25 Dallas S… /api/v1/te… DAL          Stars    Dallas       1967                          NA 22nd      13th        1st     16th     16th        18th            
+    ## # … with 51 more variables: stat.goalsAgainstPerGame <chr>, stat.evGGARatio <chr>, stat.powerPlayPercentage <chr>, stat.powerPlayGoals <chr>,
+    ## #   stat.powerPlayGoalsAgainst <chr>, stat.powerPlayOpportunities <chr>, stat.penaltyKillPercentage <chr>, stat.shotsPerGame <chr>, stat.shotsAllowed <chr>,
+    ## #   stat.winScoreFirst <chr>, stat.winOppScoreFirst <chr>, stat.winLeadFirstPer <chr>, stat.winLeadSecondPer <chr>, stat.winOutshootOpp <chr>,
+    ## #   stat.winOutshotByOpp <chr>, stat.faceOffsTaken <chr>, stat.faceOffsWon <chr>, stat.faceOffsLost <chr>, stat.faceOffWinPercentage <chr>, stat.shootingPctg <dbl>,
+    ## #   stat.savePctg <dbl>, stat.penaltyKillOpportunities <chr>, stat.savePctRank <chr>, stat.shootingPctRank <chr>, team.id <int>, team.name <chr>, team.link <chr>,
+    ## #   type.displayName <chr>, type.gameType.id <chr>, type.gameType.description <chr>, type.gameType.postseason <lgl>, shortName <chr>, officialSiteUrl <chr>,
+    ## #   franchiseId <int>, active <lgl>, venue.id <int>, venue.name <chr>, venue.link <chr>, venue.city <chr>, venue.timeZone.id <chr>, venue.timeZone.offset <int>,
+    ## #   venue.timeZone.tz <chr>, division.id <int>, division.name <chr>, division.link <chr>, conference.id <int>, conference.name <chr>, conference.link <chr>,
+    ## #   franchise.franchiseId <int>, franchise.teamName <chr>, franchise.link <chr>
 
 ### Wrapper function to call other functions
 
@@ -588,7 +640,7 @@ stats("Dallas Stars")
 wrapper <- function(fun, name){
   if (fun == "franchise"){
     return(franchise(name))
-  }else if (fun == "team_totals"){
+  }else if (fun == "total"){
     return(total(name))
   }else if (fun == "season"){
     return(season(name))
@@ -610,29 +662,28 @@ wrapper("stats", 1)
 ```
 
     ## # A tibble: 2 x 64
-    ##      id name     link    abbreviation teamName locationName firstYearOfPlay stat.gamesPlayed stat.wins stat.losses stat.ot stat.pts stat.ptPctg
-    ##   <int> <chr>    <chr>   <chr>        <chr>    <chr>        <chr>                      <int> <chr>     <chr>       <chr>   <chr>    <chr>      
-    ## 1     1 New Jer… /api/v… NJD          Devils   New Jersey   1982                          56 19        30          7       45       40.2       
-    ## 2     1 New Jer… /api/v… NJD          Devils   New Jersey   1982                          NA 28th      29th        15th    29th     29th       
-    ## # … with 51 more variables: stat.goalsPerGame <chr>, stat.goalsAgainstPerGame <chr>, stat.evGGARatio <chr>, stat.powerPlayPercentage <chr>,
-    ## #   stat.powerPlayGoals <chr>, stat.powerPlayGoalsAgainst <chr>, stat.powerPlayOpportunities <chr>, stat.penaltyKillPercentage <chr>,
-    ## #   stat.shotsPerGame <chr>, stat.shotsAllowed <chr>, stat.winScoreFirst <chr>, stat.winOppScoreFirst <chr>, stat.winLeadFirstPer <chr>,
-    ## #   stat.winLeadSecondPer <chr>, stat.winOutshootOpp <chr>, stat.winOutshotByOpp <chr>, stat.faceOffsTaken <chr>, stat.faceOffsWon <chr>,
-    ## #   stat.faceOffsLost <chr>, stat.faceOffWinPercentage <chr>, stat.shootingPctg <dbl>, stat.savePctg <dbl>,
-    ## #   stat.penaltyKillOpportunities <chr>, stat.savePctRank <chr>, stat.shootingPctRank <chr>, team.id <int>, team.name <chr>, team.link <chr>,
-    ## #   type.displayName <chr>, type.gameType.id <chr>, type.gameType.description <chr>, type.gameType.postseason <lgl>, shortName <chr>,
-    ## #   officialSiteUrl <chr>, franchiseId <int>, active <lgl>, venue.name <chr>, venue.link <chr>, venue.city <chr>, venue.timeZone.id <chr>,
-    ## #   venue.timeZone.offset <int>, venue.timeZone.tz <chr>, division.id <int>, division.name <chr>, division.link <chr>, conference.id <int>,
-    ## #   conference.name <chr>, conference.link <chr>, franchise.franchiseId <int>, franchise.teamName <chr>, franchise.link <chr>
+    ##      id name        link      abbreviation teamName locationName firstYearOfPlay stat.gamesPlayed stat.wins stat.losses stat.ot stat.pts stat.ptPctg stat.goalsPerGa…
+    ##   <int> <chr>       <chr>     <chr>        <chr>    <chr>        <chr>                      <int> <chr>     <chr>       <chr>   <chr>    <chr>       <chr>           
+    ## 1     1 New Jersey… /api/v1/… NJD          Devils   New Jersey   1982                          56 19        30          7       45       40.2        2.589           
+    ## 2     1 New Jersey… /api/v1/… NJD          Devils   New Jersey   1982                          NA 28th      29th        15th    29th     29th        26th            
+    ## # … with 50 more variables: stat.goalsAgainstPerGame <chr>, stat.evGGARatio <chr>, stat.powerPlayPercentage <chr>, stat.powerPlayGoals <chr>,
+    ## #   stat.powerPlayGoalsAgainst <chr>, stat.powerPlayOpportunities <chr>, stat.penaltyKillPercentage <chr>, stat.shotsPerGame <chr>, stat.shotsAllowed <chr>,
+    ## #   stat.winScoreFirst <chr>, stat.winOppScoreFirst <chr>, stat.winLeadFirstPer <chr>, stat.winLeadSecondPer <chr>, stat.winOutshootOpp <chr>,
+    ## #   stat.winOutshotByOpp <chr>, stat.faceOffsTaken <chr>, stat.faceOffsWon <chr>, stat.faceOffsLost <chr>, stat.faceOffWinPercentage <chr>, stat.shootingPctg <dbl>,
+    ## #   stat.savePctg <dbl>, stat.penaltyKillOpportunities <chr>, stat.savePctRank <chr>, stat.shootingPctRank <chr>, team.id <int>, team.name <chr>, team.link <chr>,
+    ## #   type.displayName <chr>, type.gameType.id <chr>, type.gameType.description <chr>, type.gameType.postseason <lgl>, shortName <chr>, officialSiteUrl <chr>,
+    ## #   franchiseId <int>, active <lgl>, venue.name <chr>, venue.link <chr>, venue.city <chr>, venue.timeZone.id <chr>, venue.timeZone.offset <int>,
+    ## #   venue.timeZone.tz <chr>, division.id <int>, division.name <chr>, division.link <chr>, conference.id <int>, conference.name <chr>, conference.link <chr>,
+    ## #   franchise.franchiseId <int>, franchise.teamName <chr>, franchise.link <chr>
 
 ``` r
-wrapper("franchise", 1)
+wrapper("franchise", 8)
 ```
 
     ## # A tibble: 1 x 8
-    ##      id firstSeasonId fullName          lastSeasonId mostRecentTeamId teamAbbrev teamCommonName teamPlaceName
-    ##   <int>         <int> <chr>                    <int>            <int> <chr>      <chr>          <chr>        
-    ## 1    23      19741975 New Jersey Devils           NA                1 NJD        Devils         New Jersey
+    ##      id firstSeasonId fullName           lastSeasonId mostRecentTeamId teamAbbrev teamCommonName teamPlaceName
+    ##   <int>         <int> <chr>              <lgl>                   <int> <chr>      <chr>          <chr>        
+    ## 1     1      19171918 Montréal Canadiens NA                          8 MTL        Canadiens      Montréal
 
 ### Basic exploratory data analysis
 
@@ -796,6 +847,12 @@ kable(table_2)
 
 #### Create numerical summaries
 
+Table 1 shows the numerical summaries of wins in regular season. We
+notice that the median number of wins is 678 in regular season. Table 2
+show the numerical summaries for different type of players. We notice
+that the average number of games played by skater is higher than that by
+goalie.
+
 ``` r
 #quantiles and mean for wins in regular season
 totals_regular <- total(NULL) %>% filter(gameTypeId ==2) 
@@ -834,7 +891,7 @@ g + geom_bar(aes(fill = as.factor(activePlayer)), position = "dodge") +
   scale_fill_discrete(name = "Active player")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
 Below is a histogram of the distribution of numerical variable wins. The
 plot shows that the probability of winning decreases as the number of
@@ -849,7 +906,7 @@ g + geom_histogram(bins = 150) +
   geom_density(col = "red", lwd = 3, adjust = 0.4)
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
 
 Below is a boxplot showing the number of wins for each conference. The
 Eastern conference has more wins.
@@ -884,7 +941,7 @@ g + geom_boxplot() +
   labs(x = "Conference", y = "Wins")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
 
 Below is a boxplot showing the number of losses for each conference.
 Similar to the boxplot for wins, the Eastern conference has more losses.
@@ -898,7 +955,7 @@ g + geom_boxplot() +
   labs(x = "Conference", y = "Losses")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
 
 The scatterplot below illustrates how wins and losses are related. We
 can see that more wins are accompanied by more losses. This is true for
@@ -912,4 +969,4 @@ g+ geom_point(aes(color = Conference), position = "jitter") +
    ggtitle("Wins vs Losses")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
