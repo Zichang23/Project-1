@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 #### Required Packages
-rmarkdown, jsonlite, ggplot2, dplyr, knitr, RCurl, httr
+rmarkdown, jsonlite, ggplot2, dplyr, knitr, tidyr, RCurl, httr
 
 ```{r message = FALSE}
 #load the required packages
@@ -22,6 +22,7 @@ library(jsonlite)
 library(ggplot2)
 library(dplyr)
 library(knitr)
+library(tidyr)
 library(RCurl)
 library(httr)
 ```
@@ -38,12 +39,14 @@ franchise_list
 
 #create function franchise
 franchise <- function(name) {
-  if (is.character(name)){
-  return(franchise_list %>% 
+  if (is.null(name)){
+    return(franchise_list)
+  }else if (is.character(name)){
+    return(franchise_list %>% 
            filter (fullName == name | teamAbbrev == name | teamCommonName == name |
                     teamPlaceName == name))
   }else if (is.numeric(name)){
-  return(franchise_list %>% filter(mostRecentTeamId == name))
+    return(franchise_list %>% filter(mostRecentTeamId == name))
   }else{
     stop("Wrong input!")
   }
@@ -51,6 +54,7 @@ franchise <- function(name) {
 
 #try to use function franchise
 franchise(8)
+franchise("Montréal Canadiens")
 ```
 
 
@@ -63,19 +67,21 @@ total_json <- fromJSON(total_cont, flatten = TRUE)
 total_list <- as_tibble(total_json$data)
 total_list
 
-#create function team_totals
-team_totals <- function(name) {
-  if (is.character(name)){
-  return(total_list %>% filter(teamName == name | triCode == name))
+#create function total
+total <- function(name) {
+  if (is.null(name)){
+    return(total_list)
+  }else if (is.character(name)){
+    return(total_list %>% filter(teamName == name | triCode == name))
   }else if (is.numeric(name)){
-  return(total_list %>% filter(franchiseId == name) )
+    return(total_list %>% filter(franchiseId == name) )
   }else{
     stop("Wrong input!")
   }
 }
 
-#try to use function team_totals
-team_totals("MTL")
+#try to use function total
+total("MTL")
 ```
 
 #### Function to return season records
@@ -91,7 +97,9 @@ lookup
 
 #create function season
 season <- function(name) {
-  if (name %in% lookup$franchiseId){
+  if (is.null(name)){
+    return(season_list)
+  }else if (name %in% lookup$franchiseId){
     full_url <- paste0("https://records.nhl.com/site/api/franchise-season-records?cayenneExp=franchiseId=", name)
   }else if (name %in% lookup$franchiseName){
     id <- lookup %>% filter(franchiseName == name) %>% select(1)
@@ -103,13 +111,12 @@ season <- function(name) {
     season_cont <- content(get_season, "text", encoding = "UTF-8")
     season_json <- fromJSON(season_cont, flatten = TRUE)
     season_list <- as_tibble(season_json$data)
-  return(season_list)
+    return(season_list)
 }
 
-#try to use function goalie
+#try to use function season
 season(1)
 season("Montréal Canadiens")
-
 ```
 
 #### Function to return goalie records
@@ -125,7 +132,9 @@ lookup
 
 #create function goalie
 goalie <- function(name) {
-  if (name %in% lookup$franchiseId){
+  if (is.null(name)){
+    return(goalie_list)
+  }else if (name %in% lookup$franchiseId){
     full_url <- paste0("https://records.nhl.com/site/api/franchise-goalie-records?cayenneExp=franchiseId=", name)
   }else if (name %in% lookup$franchiseName){
     id <- lookup %>% filter(franchiseName == name) %>% select(1) %>% unique()
@@ -158,7 +167,9 @@ lookup
 
 #create function skater
 skater <- function(name) {
-  if (name %in% lookup$franchiseId){
+  if (is.null(name)){
+    return(skater_list)
+  }else if (name %in% lookup$franchiseId){
     full_url <- paste0("https://records.nhl.com/site/api/franchise-skater-records?cayenneExp=franchiseId=", name)
   }else if (name %in% lookup$franchiseName){
     id <- lookup %>% filter(franchiseName == name) %>% select(1) %>% unique()
@@ -186,12 +197,14 @@ get_detail  <- GET(base_url)
 detail_cont <- content(get_detail, "text", encoding = "UTF-8")
 detail_json <- fromJSON(detail_cont, flatten = TRUE)
 detail_list <- as_tibble(detail_json$data)
-detail_list
 lookup <- detail_list[, c(10,13)]
 lookup
 
-#create function goalie
+#create function detail
 detail<- function(name) {
+  if (is.null(name)){
+    return(detail_list)
+  }
   if (name %in% lookup$mostRecentTeamId){
     full_url <- paste0("https://records.nhl.com/site/api/franchise-detail?cayenneExp=mostRecentTeamId=", name)
   }else if (name %in% lookup$teamFullName){
@@ -207,7 +220,7 @@ detail<- function(name) {
   return(detail_list)
 }
 
-#try to use function goalie
+#try to use function detail
 detail(15)
 detail("Dallas Stars")
 ```
@@ -227,7 +240,9 @@ lookup
 
 #create function stats
 stats <- function(name) {
-  if (name %in% lookup$id){
+  if (is.null(name)){
+    return(stats_list)
+  }else if (name %in% lookup$id){
     full_url <- paste0("https://statsapi.web.nhl.com/api/v1/teams/", name,
                            "/?expand=team.stats")
   }else if (name %in% lookup$teamName){
@@ -241,13 +256,13 @@ stats <- function(name) {
    stats_cont <- content(get_stats, "text", encoding = "UTF-8")
    stats_json <- fromJSON(stats_cont, flatten = TRUE)
    stats_list <- as_tibble(stats_json$teams)
-  return(stats_list)
+#   teamStats <- stats_list$teamStats %>% unnest(teamStats) %>% unnest(splits)
+  return(stats_list %>% unnest(c(teamStats)) %>% unnest(c(splits)))
 }
 
 #try to use function stats
 stats(15)
 stats("Dallas Stars")
-
 ```
 
 ### Wrapper function to call other functions
@@ -257,7 +272,7 @@ wrapper <- function(fun, name){
   if (fun == "franchise"){
     return(franchise(name))
   }else if (fun == "team_totals"){
-    return(team_totals(name))
+    return(total(name))
   }else if (fun == "season"){
     return(season(name))
   }else if (fun == "goalie"){
@@ -282,13 +297,13 @@ wrapper("franchise", 1)
 #### Combine data from two endpoints
 ```{r}
 #create new data frame goalie_all
-goalie_all <- goalie_list[ , c(1:8)]
+goalie_all <- goalie(NULL)[ , c(1:8)]
 goalie_all <- goalie_all %>% mutate(Type = "goalie")
 #view the data frame
 goalie_all
 
 #create new data frame skater_all
-skater_all <-skater_list[, c(1:2, 4:8, 10)]
+skater_all <- skater(NULL)[ , c(1:2, 4:8, 10)]
 skater_all <- skater_all %>% mutate(Type = "skater")
 #view the data frame
 skater_all
@@ -304,7 +319,7 @@ goalie_skater_all
 Here we create three new variables loss_rate, win_rate, and tie_rate
 ```{r}
 #create new data frame goalie_all
-goalie_all <- goalie_list[ , c(1:9, 28:29)]
+goalie_all <- goalie(NULL)[ , c(1:9, 28:29)]
 #view the data frame
 goalie_all
 
@@ -333,7 +348,7 @@ kable(table_2)
 
 ```{r}
 #quantiles and mean for wins in regular season
-totals_regular <- total_list %>% filter(gameTypeId ==2) 
+totals_regular <- total(NULL) %>% filter(gameTypeId ==2) 
 summary(totals_regular$wins)
 
 #quantiles and mean for games played
@@ -343,7 +358,7 @@ goalie_skater_all %>% group_by(Type) %>% summarize(min = min(gamesPlayed),
                                                    max = max(gamesPlayed))
 ```
 
-#### Creates plots  
+#### Create plots  
 The bar plot below compares the number of players for each player type. As we can see, non-active skaters are the most common, while active goalies are the least common.
 ```{r}
 #create bar plot to compare number of players for each player type
@@ -368,7 +383,7 @@ g + geom_histogram(bins = 150) +
 Below is a boxplot showing the number of wins for each conference. The Eastern conference has more wins.
 ```{r}
 #create a new dataset conf_totals
-conference <- stats_list[ , c("id", "conference.name")]
+conference <- stats(NULL)[ , c("id", "conference.name")]
 totals <- total_list %>% 
   filter(gameTypeId == 2, teamId %in% c(1:26, 28:30, 52:55)) %>% 
   select(c(14, 26, 27, 30))
@@ -386,6 +401,15 @@ g + geom_boxplot() +
   labs(x = "Conference", y = "Wins")
 ```
 
+Below is a boxplot showing the number of losses for each conference. Similar to the boxplot for wins, the Eastern conference has more losses.
+```{r}
+#create boxplot for number of losses for each conference
+g <- ggplot(conf_totals, aes(x = Conference, y = losses)) 
+g + geom_boxplot() + 
+  geom_jitter(aes(color = Conference)) + 
+  ggtitle("Boxplot for Losses") +
+  labs(x = "Conference", y = "Losses")
+```
 
 The scatterplot below illustrates how wins and losses are related. We can see that more wins are accompanied by more losses. This is true for both conferences.
 ```{r}

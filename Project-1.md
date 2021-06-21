@@ -17,7 +17,7 @@ Zichang Xiang
 
 #### Required Packages
 
-rmarkdown, jsonlite, ggplot2, dplyr, knitr, RCurl, httr
+rmarkdown, jsonlite, ggplot2, dplyr, knitr, tidyr, RCurl, httr
 
 ``` r
 #load the required packages
@@ -26,6 +26,7 @@ library(jsonlite)
 library(ggplot2)
 library(dplyr)
 library(knitr)
+library(tidyr)
 library(RCurl)
 library(httr)
 ```
@@ -62,12 +63,14 @@ franchise_list
 ``` r
 #create function franchise
 franchise <- function(name) {
-  if (is.character(name)){
-  return(franchise_list %>% 
+  if (is.null(name)){
+    return(franchise_list)
+  }else if (is.character(name)){
+    return(franchise_list %>% 
            filter (fullName == name | teamAbbrev == name | teamCommonName == name |
                     teamPlaceName == name))
   }else if (is.numeric(name)){
-  return(franchise_list %>% filter(mostRecentTeamId == name))
+    return(franchise_list %>% filter(mostRecentTeamId == name))
   }else{
     stop("Wrong input!")
   }
@@ -75,6 +78,16 @@ franchise <- function(name) {
 
 #try to use function franchise
 franchise(8)
+```
+
+    ## # A tibble: 1 x 8
+    ##      id firstSeasonId fullName          lastSeasonId mostRecentTeamId teamAbbrev
+    ##   <int>         <int> <chr>                    <int>            <int> <chr>     
+    ## 1     1      19171918 Montréal Canadie…           NA                8 MTL       
+    ## # … with 2 more variables: teamCommonName <chr>, teamPlaceName <chr>
+
+``` r
+franchise("Montréal Canadiens")
 ```
 
     ## # A tibble: 1 x 8
@@ -116,19 +129,21 @@ total_list
     ## #   teamName <chr>, ties <int>, triCode <chr>, wins <int>
 
 ``` r
-#create function team_totals
-team_totals <- function(name) {
-  if (is.character(name)){
-  return(total_list %>% filter(teamName == name | triCode == name))
+#create function total
+total <- function(name) {
+  if (is.null(name)){
+    return(total_list)
+  }else if (is.character(name)){
+    return(total_list %>% filter(teamName == name | triCode == name))
   }else if (is.numeric(name)){
-  return(total_list %>% filter(franchiseId == name) )
+    return(total_list %>% filter(franchiseId == name) )
   }else{
     stop("Wrong input!")
   }
 }
 
-#try to use function team_totals
-team_totals("MTL")
+#try to use function total
+total("MTL")
 ```
 
     ## # A tibble: 2 x 30
@@ -175,7 +190,9 @@ lookup
 ``` r
 #create function season
 season <- function(name) {
-  if (name %in% lookup$franchiseId){
+  if (is.null(name)){
+    return(season_list)
+  }else if (name %in% lookup$franchiseId){
     full_url <- paste0("https://records.nhl.com/site/api/franchise-season-records?cayenneExp=franchiseId=", name)
   }else if (name %in% lookup$franchiseName){
     id <- lookup %>% filter(franchiseName == name) %>% select(1)
@@ -187,10 +204,10 @@ season <- function(name) {
     season_cont <- content(get_season, "text", encoding = "UTF-8")
     season_json <- fromJSON(season_cont, flatten = TRUE)
     season_list <- as_tibble(season_json$data)
-  return(season_list)
+    return(season_list)
 }
 
-#try to use function goalie
+#try to use function season
 season(1)
 ```
 
@@ -277,7 +294,9 @@ lookup
 ``` r
 #create function goalie
 goalie <- function(name) {
-  if (name %in% lookup$franchiseId){
+  if (is.null(name)){
+    return(goalie_list)
+  }else if (name %in% lookup$franchiseId){
     full_url <- paste0("https://records.nhl.com/site/api/franchise-goalie-records?cayenneExp=franchiseId=", name)
   }else if (name %in% lookup$franchiseName){
     id <- lookup %>% filter(franchiseName == name) %>% select(1) %>% unique()
@@ -375,7 +394,9 @@ lookup
 ``` r
 #create function skater
 skater <- function(name) {
-  if (name %in% lookup$franchiseId){
+  if (is.null(name)){
+    return(skater_list)
+  }else if (name %in% lookup$franchiseId){
     full_url <- paste0("https://records.nhl.com/site/api/franchise-skater-records?cayenneExp=franchiseId=", name)
   }else if (name %in% lookup$franchiseName){
     id <- lookup %>% filter(franchiseName == name) %>% select(1) %>% unique()
@@ -455,27 +476,6 @@ get_detail  <- GET(base_url)
 detail_cont <- content(get_detail, "text", encoding = "UTF-8")
 detail_json <- fromJSON(detail_cont, flatten = TRUE)
 detail_list <- as_tibble(detail_json$data)
-detail_list
-```
-
-    ## # A tibble: 39 x 13
-    ##       id active captainHistory     coachingHistory     dateAwarded directoryUrl 
-    ##    <int> <lgl>  <chr>              <chr>               <chr>       <chr>        
-    ##  1     1 TRUE   "<ul class=\"stri… "<ul class=\"strip… 1917-11-26… https://www.…
-    ##  2     2 FALSE   <NA>               <NA>               1917-11-26… <NA>         
-    ##  3     3 FALSE   <NA>               <NA>               1917-11-26… <NA>         
-    ##  4     4 FALSE   <NA>               <NA>               1917-11-26… <NA>         
-    ##  5     5 TRUE   "<ul class=\"stri… "<ul class=\"strip… 1917-11-26… https://www.…
-    ##  6     6 TRUE   "<ul class=\"stri… "<ul class=\"strip… 1924-11-01… https://www.…
-    ##  7     7 FALSE   <NA>               <NA>               1924-11-01… <NA>         
-    ##  8     8 FALSE   <NA>               <NA>               1925-09-22… <NA>         
-    ##  9     9 FALSE   <NA>               <NA>               1925-11-07… <NA>         
-    ## 10    10 TRUE   "<ul class=\"stri… "<ul class=\"strip… 1926-05-15… https://www.…
-    ## # … with 29 more rows, and 7 more variables: firstSeasonId <int>,
-    ## #   generalManagerHistory <chr>, heroImageUrl <chr>, mostRecentTeamId <int>,
-    ## #   retiredNumbersSummary <chr>, teamAbbrev <chr>, teamFullName <chr>
-
-``` r
 lookup <- detail_list[, c(10,13)]
 lookup
 ```
@@ -496,8 +496,11 @@ lookup
     ## # … with 29 more rows
 
 ``` r
-#create function goalie
+#create function detail
 detail<- function(name) {
+  if (is.null(name)){
+    return(detail_list)
+  }
   if (name %in% lookup$mostRecentTeamId){
     full_url <- paste0("https://records.nhl.com/site/api/franchise-detail?cayenneExp=mostRecentTeamId=", name)
   }else if (name %in% lookup$teamFullName){
@@ -513,7 +516,7 @@ detail<- function(name) {
   return(detail_list)
 }
 
-#try to use function goalie
+#try to use function detail
 detail(15)
 ```
 
@@ -569,7 +572,9 @@ lookup
 ``` r
 #create function stats
 stats <- function(name) {
-  if (name %in% lookup$id){
+  if (is.null(name)){
+    return(stats_list)
+  }else if (name %in% lookup$id){
     full_url <- paste0("https://statsapi.web.nhl.com/api/v1/teams/", name,
                            "/?expand=team.stats")
   }else if (name %in% lookup$teamName){
@@ -583,18 +588,36 @@ stats <- function(name) {
    stats_cont <- content(get_stats, "text", encoding = "UTF-8")
    stats_json <- fromJSON(stats_cont, flatten = TRUE)
    stats_list <- as_tibble(stats_json$teams)
-  return(stats_list)
+#   teamStats <- stats_list$teamStats %>% unnest(teamStats) %>% unnest(splits)
+  return(stats_list %>% unnest(c(teamStats)) %>% unnest(c(splits)))
 }
 
 #try to use function stats
 stats(15)
 ```
 
-    ## # A tibble: 1 x 28
-    ##      id name  link  abbreviation teamName locationName firstYearOfPlay teamStats
-    ##   <int> <chr> <chr> <chr>        <chr>    <chr>        <chr>           <list>   
-    ## 1    15 Wash… /api… WSH          Capitals Washington   1974            <df [1 ×…
-    ## # … with 20 more variables: shortName <chr>, officialSiteUrl <chr>,
+    ## # A tibble: 2 x 65
+    ##      id name        link      abbreviation teamName locationName firstYearOfPlay
+    ##   <int> <chr>       <chr>     <chr>        <chr>    <chr>        <chr>          
+    ## 1    15 Washington… /api/v1/… WSH          Capitals Washington   1974           
+    ## 2    15 Washington… /api/v1/… WSH          Capitals Washington   1974           
+    ## # … with 58 more variables: stat.gamesPlayed <int>, stat.wins <chr>,
+    ## #   stat.losses <chr>, stat.ot <chr>, stat.pts <chr>, stat.ptPctg <chr>,
+    ## #   stat.goalsPerGame <chr>, stat.goalsAgainstPerGame <chr>,
+    ## #   stat.evGGARatio <chr>, stat.powerPlayPercentage <chr>,
+    ## #   stat.powerPlayGoals <chr>, stat.powerPlayGoalsAgainst <chr>,
+    ## #   stat.powerPlayOpportunities <chr>, stat.penaltyKillPercentage <chr>,
+    ## #   stat.shotsPerGame <chr>, stat.shotsAllowed <chr>, stat.winScoreFirst <chr>,
+    ## #   stat.winOppScoreFirst <chr>, stat.winLeadFirstPer <chr>,
+    ## #   stat.winLeadSecondPer <chr>, stat.winOutshootOpp <chr>,
+    ## #   stat.winOutshotByOpp <chr>, stat.faceOffsTaken <chr>,
+    ## #   stat.faceOffsWon <chr>, stat.faceOffsLost <chr>,
+    ## #   stat.faceOffWinPercentage <chr>, stat.shootingPctg <dbl>,
+    ## #   stat.savePctg <dbl>, stat.penaltyKillOpportunities <chr>,
+    ## #   stat.savePctRank <chr>, stat.shootingPctRank <chr>, team.id <int>,
+    ## #   team.name <chr>, team.link <chr>, type.displayName <chr>,
+    ## #   type.gameType.id <chr>, type.gameType.description <chr>,
+    ## #   type.gameType.postseason <lgl>, shortName <chr>, officialSiteUrl <chr>,
     ## #   franchiseId <int>, active <lgl>, venue.id <int>, venue.name <chr>,
     ## #   venue.link <chr>, venue.city <chr>, venue.timeZone.id <chr>,
     ## #   venue.timeZone.offset <int>, venue.timeZone.tz <chr>, division.id <int>,
@@ -606,11 +629,28 @@ stats(15)
 stats("Dallas Stars")
 ```
 
-    ## # A tibble: 1 x 28
-    ##      id name  link  abbreviation teamName locationName firstYearOfPlay teamStats
-    ##   <int> <chr> <chr> <chr>        <chr>    <chr>        <chr>           <list>   
-    ## 1    25 Dall… /api… DAL          Stars    Dallas       1967            <df [1 ×…
-    ## # … with 20 more variables: shortName <chr>, officialSiteUrl <chr>,
+    ## # A tibble: 2 x 65
+    ##      id name      link        abbreviation teamName locationName firstYearOfPlay
+    ##   <int> <chr>     <chr>       <chr>        <chr>    <chr>        <chr>          
+    ## 1    25 Dallas S… /api/v1/te… DAL          Stars    Dallas       1967           
+    ## 2    25 Dallas S… /api/v1/te… DAL          Stars    Dallas       1967           
+    ## # … with 58 more variables: stat.gamesPlayed <int>, stat.wins <chr>,
+    ## #   stat.losses <chr>, stat.ot <chr>, stat.pts <chr>, stat.ptPctg <chr>,
+    ## #   stat.goalsPerGame <chr>, stat.goalsAgainstPerGame <chr>,
+    ## #   stat.evGGARatio <chr>, stat.powerPlayPercentage <chr>,
+    ## #   stat.powerPlayGoals <chr>, stat.powerPlayGoalsAgainst <chr>,
+    ## #   stat.powerPlayOpportunities <chr>, stat.penaltyKillPercentage <chr>,
+    ## #   stat.shotsPerGame <chr>, stat.shotsAllowed <chr>, stat.winScoreFirst <chr>,
+    ## #   stat.winOppScoreFirst <chr>, stat.winLeadFirstPer <chr>,
+    ## #   stat.winLeadSecondPer <chr>, stat.winOutshootOpp <chr>,
+    ## #   stat.winOutshotByOpp <chr>, stat.faceOffsTaken <chr>,
+    ## #   stat.faceOffsWon <chr>, stat.faceOffsLost <chr>,
+    ## #   stat.faceOffWinPercentage <chr>, stat.shootingPctg <dbl>,
+    ## #   stat.savePctg <dbl>, stat.penaltyKillOpportunities <chr>,
+    ## #   stat.savePctRank <chr>, stat.shootingPctRank <chr>, team.id <int>,
+    ## #   team.name <chr>, team.link <chr>, type.displayName <chr>,
+    ## #   type.gameType.id <chr>, type.gameType.description <chr>,
+    ## #   type.gameType.postseason <lgl>, shortName <chr>, officialSiteUrl <chr>,
     ## #   franchiseId <int>, active <lgl>, venue.id <int>, venue.name <chr>,
     ## #   venue.link <chr>, venue.city <chr>, venue.timeZone.id <chr>,
     ## #   venue.timeZone.offset <int>, venue.timeZone.tz <chr>, division.id <int>,
@@ -626,7 +666,7 @@ wrapper <- function(fun, name){
   if (fun == "franchise"){
     return(franchise(name))
   }else if (fun == "team_totals"){
-    return(team_totals(name))
+    return(total(name))
   }else if (fun == "season"){
     return(season(name))
   }else if (fun == "goalie"){
@@ -646,11 +686,28 @@ wrapper <- function(fun, name){
 wrapper("stats", 1)
 ```
 
-    ## # A tibble: 1 x 27
-    ##      id name  link  abbreviation teamName locationName firstYearOfPlay teamStats
-    ##   <int> <chr> <chr> <chr>        <chr>    <chr>        <chr>           <list>   
-    ## 1     1 New … /api… NJD          Devils   New Jersey   1982            <df [1 ×…
-    ## # … with 19 more variables: shortName <chr>, officialSiteUrl <chr>,
+    ## # A tibble: 2 x 64
+    ##      id name        link      abbreviation teamName locationName firstYearOfPlay
+    ##   <int> <chr>       <chr>     <chr>        <chr>    <chr>        <chr>          
+    ## 1     1 New Jersey… /api/v1/… NJD          Devils   New Jersey   1982           
+    ## 2     1 New Jersey… /api/v1/… NJD          Devils   New Jersey   1982           
+    ## # … with 57 more variables: stat.gamesPlayed <int>, stat.wins <chr>,
+    ## #   stat.losses <chr>, stat.ot <chr>, stat.pts <chr>, stat.ptPctg <chr>,
+    ## #   stat.goalsPerGame <chr>, stat.goalsAgainstPerGame <chr>,
+    ## #   stat.evGGARatio <chr>, stat.powerPlayPercentage <chr>,
+    ## #   stat.powerPlayGoals <chr>, stat.powerPlayGoalsAgainst <chr>,
+    ## #   stat.powerPlayOpportunities <chr>, stat.penaltyKillPercentage <chr>,
+    ## #   stat.shotsPerGame <chr>, stat.shotsAllowed <chr>, stat.winScoreFirst <chr>,
+    ## #   stat.winOppScoreFirst <chr>, stat.winLeadFirstPer <chr>,
+    ## #   stat.winLeadSecondPer <chr>, stat.winOutshootOpp <chr>,
+    ## #   stat.winOutshotByOpp <chr>, stat.faceOffsTaken <chr>,
+    ## #   stat.faceOffsWon <chr>, stat.faceOffsLost <chr>,
+    ## #   stat.faceOffWinPercentage <chr>, stat.shootingPctg <dbl>,
+    ## #   stat.savePctg <dbl>, stat.penaltyKillOpportunities <chr>,
+    ## #   stat.savePctRank <chr>, stat.shootingPctRank <chr>, team.id <int>,
+    ## #   team.name <chr>, team.link <chr>, type.displayName <chr>,
+    ## #   type.gameType.id <chr>, type.gameType.description <chr>,
+    ## #   type.gameType.postseason <lgl>, shortName <chr>, officialSiteUrl <chr>,
     ## #   franchiseId <int>, active <lgl>, venue.name <chr>, venue.link <chr>,
     ## #   venue.city <chr>, venue.timeZone.id <chr>, venue.timeZone.offset <int>,
     ## #   venue.timeZone.tz <chr>, division.id <int>, division.name <chr>,
@@ -674,7 +731,7 @@ wrapper("franchise", 1)
 
 ``` r
 #create new data frame goalie_all
-goalie_all <- goalie_list[ , c(1:8)]
+goalie_all <- goalie(NULL)[ , c(1:8)]
 goalie_all <- goalie_all %>% mutate(Type = "goalie")
 #view the data frame
 goalie_all
@@ -697,7 +754,7 @@ goalie_all
 
 ``` r
 #create new data frame skater_all
-skater_all <-skater_list[, c(1:2, 4:8, 10)]
+skater_all <- skater(NULL)[ , c(1:2, 4:8, 10)]
 skater_all <- skater_all %>% mutate(Type = "skater")
 #view the data frame
 skater_all
@@ -747,7 +804,7 @@ Here we create three new variables loss\_rate, win\_rate, and tie\_rate
 
 ``` r
 #create new data frame goalie_all
-goalie_all <- goalie_list[ , c(1:9, 28:29)]
+goalie_all <- goalie(NULL)[ , c(1:9, 28:29)]
 #view the data frame
 goalie_all
 ```
@@ -834,7 +891,7 @@ kable(table_2)
 
 ``` r
 #quantiles and mean for wins in regular season
-totals_regular <- total_list %>% filter(gameTypeId ==2) 
+totals_regular <- total(NULL) %>% filter(gameTypeId ==2) 
 summary(totals_regular$wins)
 ```
 
@@ -855,7 +912,7 @@ goalie_skater_all %>% group_by(Type) %>% summarize(min = min(gamesPlayed),
     ## 1 goalie     1    89    38  1259
     ## 2 skater     1   117    54  1687
 
-#### Creates plots
+#### Create plots
 
 The bar plot below compares the number of players for each player type.
 As we can see, non-active skaters are the most common, while active
@@ -892,7 +949,7 @@ Eastern conference has more wins.
 
 ``` r
 #create a new dataset conf_totals
-conference <- stats_list[ , c("id", "conference.name")]
+conference <- stats(NULL)[ , c("id", "conference.name")]
 totals <- total_list %>% 
   filter(gameTypeId == 2, teamId %in% c(1:26, 28:30, 52:55)) %>% 
   select(c(14, 26, 27, 30))
@@ -922,6 +979,20 @@ g + geom_boxplot() +
 
 ![](Project-1_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
 
+Below is a boxplot showing the number of losses for each conference.
+Similar to the boxplot for wins, the Eastern conference has more losses.
+
+``` r
+#create boxplot for number of losses for each conference
+g <- ggplot(conf_totals, aes(x = Conference, y = losses)) 
+g + geom_boxplot() + 
+  geom_jitter(aes(color = Conference)) + 
+  ggtitle("Boxplot for Losses") +
+  labs(x = "Conference", y = "Losses")
+```
+
+![](Project-1_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+
 The scatterplot below illustrates how wins and losses are related. We
 can see that more wins are accompanied by more losses. This is true for
 both conferences.
@@ -934,4 +1005,4 @@ g+ geom_point(aes(color = Conference), position = "jitter") +
    ggtitle("Wins vs Losses")
 ```
 
-![](Project-1_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](Project-1_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
