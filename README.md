@@ -834,7 +834,7 @@ g + geom_bar(aes(fill = as.factor(activePlayer)), position = "dodge") +
   scale_fill_discrete(name = "Active player")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 
 Below is a histogram of the distribution of numerical variable wins. The
 plot shows that the probability of winning decreases as the number of
@@ -849,7 +849,7 @@ g + geom_histogram(bins = 150) +
   geom_density(col = "red", lwd = 3, adjust = 0.4)
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
 
 Below is a boxplot showing the number of wins for each conference. The
 Eastern conference has more wins.
@@ -884,7 +884,7 @@ g + geom_boxplot() +
   labs(x = "Conference", y = "Wins")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
 
 Below is a boxplot showing the number of losses for each conference.
 Similar to the boxplot for wins, the Eastern conference has more losses.
@@ -898,7 +898,7 @@ g + geom_boxplot() +
   labs(x = "Conference", y = "Losses")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
 
 The scatterplot below illustrates how wins and losses are related. We
 can see that more wins are accompanied by more losses. This is true for
@@ -912,4 +912,4 @@ g+ geom_point(aes(color = Conference), position = "jitter") +
    ggtitle("Wins vs Losses")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
